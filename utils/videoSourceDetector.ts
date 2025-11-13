@@ -264,19 +264,8 @@ export function detectVideoSource(url: string): VideoSourceInfo {
     }
   }
 
-  const fileExtMatch = normalizedUrl.match(new RegExp(`\\.(${DIRECT_VIDEO_FORMATS.join('|')})(\\?.*)?$`, 'i'));
-  if (fileExtMatch) {
-    const ext = fileExtMatch[1];
-    console.log('[VideoSourceDetector] Detected direct video file:', ext);
-    return {
-      type: 'direct',
-      platform: 'Direct Video',
-      requiresPremium: false,
-      streamType: ext as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov',
-      requiresWebView: false,
-    };
-  }
-
+  // IMPORTANT: Check streaming formats FIRST (m3u8, mpd, rtmp, rtsp)
+  // before checking direct video files to prevent URL truncation
   for (const [protocol, pattern] of Object.entries(STREAM_PROTOCOLS)) {
     if (pattern.test(url)) {
       console.log(`[VideoSourceDetector] Detected ${protocol.toUpperCase()} stream`);
@@ -288,6 +277,20 @@ export function detectVideoSource(url: string): VideoSourceInfo {
         requiresWebView: false,
       };
     }
+  }
+
+  // Now check direct video file formats (mp4, webm, etc.)
+  const fileExtMatch = normalizedUrl.match(new RegExp(`\\.(${DIRECT_VIDEO_FORMATS.join('|')})(\\?.*)?$`, 'i'));
+  if (fileExtMatch) {
+    const ext = fileExtMatch[1];
+    console.log('[VideoSourceDetector] Detected direct video file:', ext);
+    return {
+      type: 'direct',
+      platform: 'Direct Video',
+      requiresPremium: false,
+      streamType: ext as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov',
+      requiresWebView: false,
+    };
   }
 
   for (const source of ADULT_PLATFORMS) {
