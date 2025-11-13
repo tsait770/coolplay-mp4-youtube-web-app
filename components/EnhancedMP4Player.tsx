@@ -74,15 +74,26 @@ export default function EnhancedMP4Player({
   const player = useVideoPlayer(url, (player) => {
     player.loop = false;
     player.muted = isMuted;
+    
+    console.log('[EnhancedMP4Player] Player initialized for:', url);
+    console.log('[EnhancedMP4Player] Player status:', player.status);
+    
     if (autoPlay) {
+      console.log('[EnhancedMP4Player] Auto-playing video');
       player.play();
     }
   });
 
   useEffect(() => {
-    if (!player) return;
+    if (!player) {
+      console.warn('[EnhancedMP4Player] Player not initialized');
+      return;
+    }
+
+    console.log('[EnhancedMP4Player] Setting up player listeners for:', url);
 
     const subscription = player.addListener('playingChange', (event) => {
+      console.log('[EnhancedMP4Player] Playing state changed:', event.isPlaying);
       setIsPlaying(event.isPlaying);
       if (event.isPlaying) {
         onPlaybackStart?.();
@@ -90,39 +101,65 @@ export default function EnhancedMP4Player({
     });
 
     const statusSubscription = player.addListener('statusChange', (status) => {
-      if (status.status === 'readyToPlay') {
+      console.log('[EnhancedMP4Player] Status changed:', status.status);
+      
+      if (status.status === 'idle') {
+        console.log('[EnhancedMP4Player] Player is idle');
+      } else if (status.status === 'loading') {
+        console.log('[EnhancedMP4Player] Player is loading');
+        setIsLoading(true);
+      } else if (status.status === 'readyToPlay') {
+        console.log('[EnhancedMP4Player] Player ready to play. Duration:', player.duration);
         setIsLoading(false);
         setDuration(player.duration);
       } else if (status.status === 'error') {
-        const errorMsg = 'Playback error occurred';
-        console.error('[EnhancedMP4Player] Error:', status.error);
+        const errorMsg = status.error?.message || 'Playback error occurred';
+        console.error('[EnhancedMP4Player] Playback error:', {
+          error: status.error,
+          message: errorMsg,
+          url
+        });
         setIsLoading(false);
         onError?.(errorMsg);
       }
     });
 
+    const playToEndSubscription = player.addListener('playToEnd', () => {
+      console.log('[EnhancedMP4Player] Playback ended');
+      onPlaybackEnd?.();
+    });
+
     return () => {
       subscription.remove();
       statusSubscription.remove();
+      playToEndSubscription.remove();
     };
-  }, [player, onPlaybackStart, onError]);
+  }, [player, url, onPlaybackStart, onPlaybackEnd, onError]);
 
   useEffect(() => {
     if (!player) return;
 
+    console.log('[EnhancedMP4Player] Starting progress update interval');
+    
     progressUpdateIntervalRef.current = setInterval(() => {
-      const time = player.currentTime;
-      setCurrentTime(time);
-      setDuration(player.duration);
+      try {
+        const time = player.currentTime;
+        const dur = player.duration;
+        
+        setCurrentTime(time);
+        setDuration(dur);
 
-      if (isLooping && abLoopStart !== null && abLoopEnd !== null) {
-        if (time >= abLoopEnd) {
-          player.currentTime = abLoopStart;
+        if (isLooping && abLoopStart !== null && abLoopEnd !== null) {
+          if (time >= abLoopEnd) {
+            player.currentTime = abLoopStart;
+          }
         }
-      }
 
-      if (time >= player.duration && player.duration > 0) {
-        onPlaybackEnd?.();
+        if (time >= dur && dur > 0) {
+          onPlaybackEnd?.();
+        }
+      } catch (error) {
+        console.error('[EnhancedMP4Player] Error in progress update:', error);
       }
     }, 250);
 
