@@ -126,6 +126,22 @@ export default function DashTestScreen() {
           </Text>
         </View>
 
+        <View style={styles.warningSection}>
+          <Text style={styles.warningTitle}>⚠️ iOS DASH Limitations</Text>
+          <Text style={styles.warningText}>
+            iOS does not natively support DASH format (.mpd files). While this app uses dash.js library to enable DASH playback in a WebView, some DASH streams may still fail due to:
+          </Text>
+          <Text style={styles.warningText}>
+            • Unsupported video codecs (iOS prefers H.264/HEVC){'\n'}
+            • DRM-protected content{'\n'}
+            • WebView video playback limitations{'\n'}
+            • CORS or server restrictions
+          </Text>
+          <Text style={styles.warningText}>
+            💡 Recommendation: For best iOS compatibility, use HLS format (.m3u8) instead of DASH.
+          </Text>
+        </View>
+
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.backButton}
@@ -269,5 +285,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: Colors.primary.accent,
+  },
+  warningSection: {
+    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 152, 0, 0.3)',
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ff9800',
+    marginBottom: 12,
+  },
+  warningText: {
+    fontSize: 14,
+    color: Colors.primary.textSecondary,
+    lineHeight: 22,
+    marginBottom: 8,
   },
 });

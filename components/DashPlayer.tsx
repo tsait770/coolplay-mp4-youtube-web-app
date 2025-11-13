@@ -211,25 +211,42 @@ export default function DashPlayer({
 
         // Setup event listeners
         player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-          console.error('[DashPlayer] DASH error:', e);
+          console.error('[DashPlayer] DASH error:', JSON.stringify(e, null, 2));
           let errorMsg = 'Failed to play DASH stream';
           
-          if (e.error === 'download') {
+          // Extract error details
+          const errorType = e.error || e.type || 'unknown';
+          const errorCode = e.code || '';
+          const errorMessage = e.message || '';
+          
+          console.log('[DashPlayer] Error details:', {
+            type: errorType,
+            code: errorCode,
+            message: errorMessage,
+            event: e
+          });
+          
+          if (errorType === 'download' || errorCode === 'DOWNLOAD_ERROR') {
             errorMsg = 'Failed to download DASH manifest\\n\\nPlease check:\\n• Video URL is correct\\n• Server is accessible\\n• Network connection is stable';
-          } else if (e.error === 'manifestError') {
+          } else if (errorType === 'manifestError' || errorCode === 'MANIFEST_LOADER_PARSING_FAILURE_ERROR_CODE') {
             errorMsg = 'Invalid DASH manifest file\\n\\nThe stream format may be corrupted or unsupported.';
-          } else if (e.error === 'key_session') {
+          } else if (errorType === 'key_session' || errorCode === 'MEDIA_KEYERR_CODE') {
             errorMsg = 'DRM protected content detected\\n\\nThis video requires DRM authentication which is not currently supported.';
-          } else if (e.error) {
-            errorMsg = 'DASH Error: ' + e.error;
+          } else if (errorMessage) {
+            errorMsg = 'DASH Error: ' + errorMessage;
+          } else if (errorCode) {
+            errorMsg = 'DASH Error: ' + errorCode;
+          } else if (typeof errorType === 'string') {
+            errorMsg = 'DASH Error: ' + errorType;
           }
           
           showError(errorMsg);
         });
 
         player.on(dashjs.MediaPlayer.events.PLAYBACK_ERROR, function(e) {
-          console.error('[DashPlayer] Playback error:', e);
-          showError('Playback failed\\n\\nError: ' + (e.error || 'Unknown error'));
+          console.error('[DashPlayer] Playback error:', JSON.stringify(e, null, 2));
+          const errorMsg = e.message || e.error || e.type || 'Unknown playback error';
+          showError('Playback failed\\n\\nError: ' + errorMsg);
         });
 
         player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
@@ -254,21 +271,30 @@ export default function DashPlayer({
           let errorMsg = 'Video playback error';
           
           if (error) {
+            console.log('[DashPlayer] Video error details:', {
+              code: error.code,
+              message: error.message,
+              MEDIA_ERR_ABORTED: error.MEDIA_ERR_ABORTED,
+              MEDIA_ERR_NETWORK: error.MEDIA_ERR_NETWORK,
+              MEDIA_ERR_DECODE: error.MEDIA_ERR_DECODE,
+              MEDIA_ERR_SRC_NOT_SUPPORTED: error.MEDIA_ERR_SRC_NOT_SUPPORTED
+            });
+            
             switch (error.code) {
               case error.MEDIA_ERR_ABORTED:
                 errorMsg = 'Video playback aborted';
                 break;
               case error.MEDIA_ERR_NETWORK:
-                errorMsg = 'Network error while loading video';
+                errorMsg = 'Network error while loading video\\n\\nPlease check your internet connection and try again.';
                 break;
               case error.MEDIA_ERR_DECODE:
-                errorMsg = 'Video decoding error\\n\\nThe video format may be unsupported.';
+                errorMsg = 'Video decoding error\\n\\nThe video codec may not be supported by your device.\\n\\niOS Note: DASH streams with certain codecs may not work on iOS.';
                 break;
               case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                errorMsg = 'Video format not supported\\n\\niOS may not support this DASH stream format.';
+                errorMsg = 'Video format not supported\\n\\niOS does not natively support DASH format.\\n\\nThis player uses dash.js to enable DASH playback, but some streams may still be incompatible.\\n\\nTip: Try using HLS (.m3u8) format instead for better iOS compatibility.';
                 break;
               default:
-                errorMsg = 'Unknown video error: ' + error.message;
+                errorMsg = 'Unknown video error' + (error.message ? ': ' + error.message : '');
             }
           }
           
