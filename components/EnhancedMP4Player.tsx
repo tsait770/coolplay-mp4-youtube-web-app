@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,11 +27,8 @@ import {
   Lock,
   Unlock,
   X,
-  AlertCircle,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { diagnoseMP4File } from '@/utils/mp4Diagnostics';
-import { normalizeFileUri, validateFileAccess, checkStoragePermission, openAppSettings } from '@/utils/filePermissions';
 
 interface EnhancedMP4PlayerProps {
   url: string;
@@ -70,81 +66,15 @@ export default function EnhancedMP4Player({
   const [abLoopEnd, setAbLoopEnd] = useState<number | null>(null);
   const [isLooping, setIsLooping] = useState(false);
   const [showAbLoopMenu, setShowAbLoopMenu] = useState(false);
-  const [diagnosticResult, setDiagnosticResult] = useState<any>(null);
-  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backButtonOpacity = useRef(new Animated.Value(1)).current;
   const progressUpdateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [normalizedUrl, setNormalizedUrl] = useState<string>(url);
-  const [isDiagnosing, setIsDiagnosing] = useState(false);
 
-  useEffect(() => {
-    const initializePlayer = async () => {
-      console.log('[EnhancedMP4Player] Initializing player for:', url);
-      setIsDiagnosing(true);
-
-      try {
-        const diagnostic = await diagnoseMP4File(url);
-        setDiagnosticResult(diagnostic);
-
-        if (!diagnostic.fileInfo.exists) {
-          const errorMsg = '檔案不存在或無法存取。請確認檔案路徑是否正確。';
-          setPermissionError(errorMsg);
-          onError?.(errorMsg);
-          setIsDiagnosing(false);
-          return;
-        }
-
-        if (diagnostic.fileInfo.needsPermission && !diagnostic.fileInfo.permissionGranted) {
-          const errorMsg = '需要儲存空間讀取權限。請在設定中啟用權限。';
-          setPermissionError(errorMsg);
-          
-          Alert.alert(
-            '需要權限',
-            '應用程式需要存取您的儲存空間以播放本地影片。',
-            [
-              { text: '取消', style: 'cancel' },
-              { 
-                text: '開啟設定', 
-                onPress: () => openAppSettings()
-              },
-            ]
-          );
-          
-          onError?.(errorMsg);
-          setIsDiagnosing(false);
-          return;
-        }
-
-        const normalized = normalizeFileUri(url);
-        if (!normalized.isValid) {
-          const errorMsg = normalized.errorMessage || 'URI 格式無效';
-          setPermissionError(errorMsg);
-          onError?.(errorMsg);
-          setIsDiagnosing(false);
-          return;
-        }
-
-        setNormalizedUrl(normalized.normalized);
-        setPermissionError(null);
-      } catch (error) {
-        console.error('[EnhancedMP4Player] Initialization error:', error);
-        const errorMsg = error instanceof Error ? error.message : '初始化播放器時發生錯誤';
-        setPermissionError(errorMsg);
-        onError?.(errorMsg);
-      } finally {
-        setIsDiagnosing(false);
-      }
-    };
-
-    initializePlayer();
-  }, [url]);
-
-  const player = useVideoPlayer(normalizedUrl || url, (player) => {
+  const player = useVideoPlayer(url, (player) => {
     player.loop = false;
     player.muted = isMuted;
-    if (autoPlay && !permissionError && !isDiagnosing) {
+    if (autoPlay) {
       player.play();
     }
   });
@@ -418,55 +348,6 @@ export default function EnhancedMP4Player({
       </Modal>
     );
   };
-
-  if (permissionError || (diagnosticResult && !diagnosticResult.fileInfo.exists)) {
-    return (
-      <View style={[styles.container, style]}>        <View style={styles.errorOverlay}>
-          <AlertCircle size={48} color={Colors.accent.danger} />
-          <Text style={styles.errorTitle}>無法播放影片</Text>
-          <Text style={styles.errorMessage}>{permissionError}</Text>
-          
-          {diagnosticResult?.recommendations && (
-            <View style={styles.recommendationsContainer}>
-              <Text style={styles.recommendationsTitle}>建議解決方案：</Text>
-              {diagnosticResult.recommendations.slice(0, 3).map((rec: string, idx: number) => (
-                <Text key={idx} style={styles.recommendationText}>{rec}</Text>
-              ))}
-            </View>
-          )}
-
-          {diagnosticResult?.fileInfo.needsPermission && !diagnosticResult?.fileInfo.permissionGranted && (
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={() => openAppSettings()}
-            >
-              <Text style={styles.settingsButtonText}>開啟設定</Text>
-            </TouchableOpacity>
-          )}
-
-          {onBackPress && (
-            <TouchableOpacity
-              style={styles.backToMenuButton}
-              onPress={onBackPress}
-            >
-              <Text style={styles.backToMenuButtonText}>返回</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  }
-
-  if (isDiagnosing) {
-    return (
-      <View style={[styles.container, style]}>        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={Colors.accent.primary} />
-          <Text style={styles.loadingText}>正在分析影片檔案...</Text>
-          <Text style={styles.loadingSubtext}>檢查編解碼器與權限</Text>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={[styles.container, style]}>
@@ -937,77 +818,5 @@ const styles = StyleSheet.create({
     color: Colors.accent.primary,
     fontSize: 13,
     fontWeight: '600',
-  },
-  errorOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    padding: 24,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#ccc',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  recommendationsContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    width: '100%',
-    maxWidth: 400,
-  },
-  recommendationsTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.accent.primary,
-    marginBottom: 12,
-  },
-  recommendationText: {
-    fontSize: 12,
-    color: '#fff',
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  settingsButton: {
-    backgroundColor: Colors.accent.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginTop: 20,
-  },
-  settingsButtonText: {
-    color: '#000',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  backToMenuButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    marginTop: 12,
-  },
-  backToMenuButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  loadingSubtext: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#aaa',
-    fontWeight: '400',
   },
 });
