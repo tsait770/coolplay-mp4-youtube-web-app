@@ -362,7 +362,7 @@ export default function DashPlayer({
                 errorMsg = '影片解碼錯誤\\n\\n您的裝置可能不支援該影片編解碼器。\\n\\niOS 限制：此 DASH 串流使用 iOS WebView 無法解碼的編解碼器。\\n\\n可能原因：\\n• VP8/VP9 編解碼器（iOS 不支援）\\n• 不支援的音訊編解碼器\\n• 無效的編碼參數\\n\\n建議：使用 H.264 影片 + AAC 音訊的串流。';
                 break;
               case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                errorMsg = '不支援的影片格式\\n\\n⚠️ iOS 限制檢測\\n\\niOS 不原生支援 DASH 格式。此播放器使用 dash.js 啟用 DASH 播放，但仍需要編解碼器相容性。\\n\\n✅ iOS 支援的編解碼器：\\n• 影片：H.264、H.265/HEVC\\n• 音訊：AAC、MP3\\n\\n❌ 不支援：\\n• 影片：VP8、VP9、AV1\\n• 音訊：Vorbis、Opus（有限支援）\\n\\n💡 建議：\\n為獲得最佳 iOS 相容性，請使用 HLS (.m3u8) 格式代替 DASH (.mpd)。';
+                errorMsg = 'DASH 格式不相容\\n\\n此 DASH 串流使用的編解碼器與 iOS 不相容。\\n\\n建議：請改用 HLS (.m3u8) 格式以獲得最佳播放體驗。';
                 break;
               default:
                 errorMsg = '未知影片錯誤 (代碼: ' + error.code + ')' + (error.message ? '\\n\\n' + error.message : '');
