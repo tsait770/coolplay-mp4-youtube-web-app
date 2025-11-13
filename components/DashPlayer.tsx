@@ -36,18 +36,12 @@ export default function DashPlayer({
 
   useEffect(() => {
     if (Platform.OS === 'ios') {
-      console.warn('[DashPlayer] iOS detected - DASH support is very limited');
-      console.warn('[DashPlayer] Recommend using HLS (.m3u8) or MP4 format instead');
-      
-      // Show error immediately without trying to load
-      const iosError = 'iOS 不原生支援 DASH 格式\n\n⚠️ iOS 限制說明：\niOS WebView 對 DASH (.mpd) 格式的支援非常有限。即使使用 dash.js，底層編解碼器仍必須被 WebKit 支援。\n\n✅ 建議解決方案：\n1. 使用 HLS (.m3u8) 格式 - iOS 完全支援\n2. 使用直接 MP4 連結\n3. 確認 DASH 串流使用 iOS 相容編解碼器：\n   • 影片: H.264 或 H.265/HEVC\n   • 音訊: AAC 或 MP3\n\n❌ iOS 不支援的編解碼器：\n   • 影片: VP8、VP9、AV1\n   • 音訊: Vorbis、Opus\n\n如果您必須使用 DASH，請確認您的串流使用 iOS 相容的編解碼器。';
-      
-      setTimeout(() => {
-        setIsLoading(false);
-        onError?.(iosError);
-      }, 500);
+      console.warn('[DashPlayer] iOS detected - DASH support is limited');
+      console.warn('[DashPlayer] This may work if the stream uses H.264/H.265 and AAC/MP3 codecs');
+      console.warn('[DashPlayer] For best compatibility, use HLS (.m3u8) or direct MP4');
+      // Don't block - attempt to play and let actual errors be handled by the player
     }
-  }, [onError]);
+  }, []);
 
   const dashPlayerHTML = `
 <!DOCTYPE html>
