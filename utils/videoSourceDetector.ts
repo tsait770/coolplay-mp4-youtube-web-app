@@ -46,7 +46,7 @@ const STREAM_PROTOCOLS = {
 
 const SUPPORTED_PLATFORMS = [
   {
-    pattern: /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtu\.be\/|youtube-nocookie\.com\/embed\/)([\w-]+)/i,
+    pattern: /(?:youtube\.com\/watch\?|m\.youtube\.com\/watch\?|youtube\.com\/embed\/|youtu\.be\/|youtube-nocookie\.com\/embed\/)([\w-]+)/i,
     type: 'youtube' as VideoSourceType,
     platform: 'YouTube',
     requiresPremium: false,
@@ -324,6 +324,7 @@ export function detectVideoSource(url: string): VideoSourceInfo {
         if (source.type === 'youtube') {
           const patterns = [
             /(?:youtube\.com\/watch\?.*v=)([\w-]{11})/i,
+            /(?:m\.youtube\.com\/watch\?.*v=)([\w-]{11})/i,
             /(?:youtu\.be\/)([\w-]{11})/i,
             /(?:youtube\.com\/embed\/)([\w-]{11})/i,
             /(?:youtube\.com\/v\/)([\w-]{11})/i,

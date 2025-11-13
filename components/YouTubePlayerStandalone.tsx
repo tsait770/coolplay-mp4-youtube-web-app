@@ -23,44 +23,40 @@ function getYouTubeVideoId(url: string): string | null {
 
   let videoId: string | null = null;
 
-  const standardMatch = url.match(/(?:youtube\.com\/watch\?.*[&?]v=|youtube\.com\/watch\?v=)([\w-]+)/i);
-  if (standardMatch) {
-    videoId = standardMatch[1];
-  }
+  const patterns = [
+    /(?:youtube\.com\/watch\?.*[&?]v=|youtube\.com\/watch\?v=)([\w-]{11})/i,
+    /(?:m\.youtube\.com\/watch\?.*[&?]v=|m\.youtube\.com\/watch\?v=)([\w-]{11})/i,
+    /(?:youtu\.be\/)([\w-]{11})/i,
+    /(?:youtube\.com\/embed\/)([\w-]{11})/i,
+    /(?:youtube\.com\/v\/)([\w-]{11})/i,
+    /(?:youtube\.com\/shorts\/)([\w-]{11})/i,
+    /(?:youtube-nocookie\.com\/embed\/)([\w-]{11})/i,
+  ];
 
-  const shortMatch = url.match(/youtu\.be\/([\w-]+)(?:[?&][^\s]*)?/i);
-  if (shortMatch) {
-    videoId = shortMatch[1];
-  }
-
-  const embedMatch = url.match(/youtube\.com\/embed\/([\w-]+)(?:[?&][^\s]*)?/i);
-  if (embedMatch) {
-    videoId = embedMatch[1];
-  }
-
-  const vMatch = url.match(/youtube\.com\/v\/([\w-]+)(?:[?&][^\s]*)?/i);
-  if (vMatch) {
-    videoId = vMatch[1];
-  }
-
-  const shortsMatch = url.match(/youtube\.com\/shorts\/([\w-]+)(?:[?&][^\s]*)?/i);
-  if (shortsMatch) {
-    videoId = shortsMatch[1];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      videoId = match[1];
+      break;
+    }
   }
 
   if (videoId) {
     videoId = videoId.split('&')[0].split('?')[0];
+    console.log('[YouTubePlayerStandalone] Extracted video ID:', videoId, 'from URL:', url);
     return videoId;
   }
 
+  console.warn('[YouTubePlayerStandalone] Could not extract video ID from URL:', url);
   return null;
 }
 
 function detectVideoSource(url: string): VideoSourceDetectionResult {
-  const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([\w-]+)(?:[&?][^\s]*)?/i;
+  const youtubeRegex = /(?:youtube\.com\/watch\?|m\.youtube\.com\/watch\?|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([\w-]+)/i;
 
   if (youtubeRegex.test(url)) {
     const videoId = getYouTubeVideoId(url);
+    console.log('[YouTubePlayerStandalone] Detected YouTube URL, videoId:', videoId);
     return {
       isSupported: true,
       sourceInfo: {
@@ -72,6 +68,7 @@ function detectVideoSource(url: string): VideoSourceDetectionResult {
     };
   }
 
+  console.warn('[YouTubePlayerStandalone] Not a YouTube URL:', url);
   return {
     isSupported: false,
     sourceInfo: {
