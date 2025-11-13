@@ -1,0 +1,21 @@
+library universal_player;
+
+export 'src/controller/universal_player_controller.dart';
+export 'src/backend/player_backend.dart';
+export 'src/backend/method_channel_backend.dart';
+export 'src/backend/ffmpeg_fallback_backend.dart';
+export 'src/models/player_error.dart';
+export 'src/models/player_state.dart';
+export 'src/models/source.dart';
+export 'src/models/variant.dart';
+export 'src/source_parser/source_parser.dart';
+export 'src/source_parser/youtube_utils.dart';
+export 'src/source_parser/youtube_resolver.dart';
+export 'src/source_parser/vimeo_resolver.dart';
+export 'src/source_parser/twitch_resolver.dart';
+export 'src/source_parser/facebook_resolver.dart';
+export 'src/source_parser/cloud_resolvers.dart';
+export 'src/source_parser/adult_resolvers.dart';
+export 'src/voice/voice_service.dart';
+export 'src/voice/command_mapper.dart';
+export 'src/ui/video_controls.dart';
