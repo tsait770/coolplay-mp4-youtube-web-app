@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -6,6 +6,8 @@ import {
   Text,
   TouchableOpacity,
   Animated,
+  Platform,
+  Alert,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { ArrowLeft } from 'lucide-react-native';
@@ -31,6 +33,16 @@ export default function DashPlayer({
   const [isLoading, setIsLoading] = useState(true);
   const webViewRef = useRef<WebView>(null);
   const backButtonOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      Alert.alert(
+        'iOS 相容性提示',
+        'iOS 對 DASH (.mpd) 格式支援有限。\n\n建議使用 HLS (.m3u8) 或 MP4 格式以獲得最佳播放體驗。\n\n此播放器將嘗試使用 dash.js 播放，但某些串流可能無法正常運作。',
+        [{ text: '了解' }]
+      );
+    }
+  }, []);
 
   const dashPlayerHTML = `
 <!DOCTYPE html>
@@ -88,7 +100,7 @@ export default function DashPlayer({
       width: 50px;
       height: 50px;
       border: 4px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #fff;
+      border-top-color: #69E7D8;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -143,11 +155,11 @@ export default function DashPlayer({
   <div id="videoContainer">
     <div id="loadingOverlay">
       <div class="spinner"></div>
-      <div id="loadingText">Loading DASH stream...</div>
+      <div id="loadingText">載入 DASH 串流中...</div>
     </div>
     <div id="errorOverlay">
       <div class="error-icon">⚠️</div>
-      <div class="error-title">Unable to Play Video</div>
+      <div class="error-title">無法播放影片</div>
       <div class="error-message" id="errorMessage"></div>
     </div>
     <video id="video" controls ${autoPlay ? 'autoplay' : ''} playsinline webkit-playsinline preload="auto"></video>
@@ -165,7 +177,6 @@ export default function DashPlayer({
       console.log('[DashPlayer] User Agent:', navigator.userAgent);
       console.log('[DashPlayer] Platform:', navigator.platform);
       
-      // Detect iOS
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       
@@ -195,7 +206,7 @@ export default function DashPlayer({
       }
 
       if (typeof dashjs === 'undefined') {
-        showError('DASH.js library failed to load. Please check your internet connection.');
+        showError('DASH.js 函式庫載入失敗。請檢查網路連線。');
         return;
       }
 
@@ -206,7 +217,7 @@ export default function DashPlayer({
         
         player.updateSettings({
           debug: {
-            logLevel: dashjs.Debug.LOG_LEVEL_DEBUG
+            logLevel: dashjs.Debug.LOG_LEVEL_WARNING
           },
           streaming: {
             buffer: {
@@ -245,34 +256,32 @@ export default function DashPlayer({
           hasError = true;
           
           console.error('[DashPlayer] DASH error event:', e);
-          let errorMsg = 'Failed to play DASH stream';
+          let errorMsg = '無法播放 DASH 串流';
           
           const errorType = e.error ? (typeof e.error === 'object' ? e.error.code || e.error.message : e.error) : null;
           const errorCode = e.code || (e.error && e.error.code);
-          const errorData = e.error && e.error.data ? JSON.stringify(e.error.data) : null;
           
           console.log('[DashPlayer] Error details:', {
             type: errorType,
             code: errorCode,
             message: e.message,
-            errorData: errorData,
             fullError: JSON.stringify(e, null, 2)
           });
           
           if (errorType === 'download' || String(errorCode).includes('DOWNLOAD')) {
-            errorMsg = 'Failed to download DASH manifest\\n\\nPlease check:\\n• Video URL is correct\\n• Server is accessible\\n• Network connection is stable';
+            errorMsg = 'DASH manifest 下載失敗\\n\\n請檢查：\\n• 影片網址是否正確\\n• 伺服器是否可訪問\\n• 網路連線是否穩定';
           } else if (String(errorCode).includes('MANIFEST') || String(errorType).includes('manifest')) {
-            errorMsg = 'Invalid DASH manifest file\\n\\nThe stream format may be corrupted or unsupported.';
+            errorMsg = 'DASH manifest 檔案無效\\n\\n串流格式可能已損壞或不受支援。';
           } else if (String(errorCode).includes('MEDIA_KEYERR') || String(errorType).includes('key_session')) {
-            errorMsg = 'DRM protected content detected\\n\\nThis video requires DRM authentication which is not currently supported.';
+            errorMsg = '檢測到 DRM 保護內容\\n\\n此影片需要 DRM 驗證，目前不支援。';
           } else if (String(errorCode).includes('CODEC') || String(errorType).includes('codec')) {
-            errorMsg = 'Codec not supported\\n\\niOS WebView does not support this video codec.\\n\\nThe stream may use VP8/VP9 codec which is not compatible with iOS.\\n\\nRecommendation: Use H.264/H.265 codec for iOS.';
+            errorMsg = '編解碼器不受支援\\n\\niOS WebView 不支援此影片編解碼器。\\n\\n串流可能使用 VP8/VP9 編解碼器，與 iOS 不相容。\\n\\n建議：使用 H.264/H.265 編解碼器的串流。';
           } else if (e.message) {
-            errorMsg = 'DASH Error: ' + e.message;
+            errorMsg = 'DASH 錯誤: ' + e.message;
           } else if (errorCode) {
-            errorMsg = 'DASH Error Code: ' + errorCode;
+            errorMsg = 'DASH 錯誤代碼: ' + errorCode;
           } else if (errorType) {
-            errorMsg = 'DASH Error: ' + String(errorType);
+            errorMsg = 'DASH 錯誤: ' + String(errorType);
           }
           
           showError(errorMsg);
@@ -283,8 +292,8 @@ export default function DashPlayer({
           hasError = true;
           
           console.error('[DashPlayer] Playback error event:', e);
-          const errorMsg = e.message || (e.error && e.error.message) || 'Unknown playback error';
-          showError('Playback failed\\n\\n' + errorMsg);
+          const errorMsg = e.message || (e.error && e.error.message) || '未知播放錯誤';
+          showError('播放失敗\\n\\n' + errorMsg);
         });
 
         player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
@@ -335,33 +344,29 @@ export default function DashPlayer({
           
           console.error('[DashPlayer] Video element error:', e);
           const error = video.error;
-          let errorMsg = 'Video playback error';
+          let errorMsg = '影片播放錯誤';
           
           if (error) {
             console.log('[DashPlayer] Video error details:', {
               code: error.code,
-              message: error.message,
-              MEDIA_ERR_ABORTED: error.MEDIA_ERR_ABORTED,
-              MEDIA_ERR_NETWORK: error.MEDIA_ERR_NETWORK,
-              MEDIA_ERR_DECODE: error.MEDIA_ERR_DECODE,
-              MEDIA_ERR_SRC_NOT_SUPPORTED: error.MEDIA_ERR_SRC_NOT_SUPPORTED
+              message: error.message
             });
             
             switch (error.code) {
               case error.MEDIA_ERR_ABORTED:
-                errorMsg = 'Video playback aborted';
+                errorMsg = '影片播放已中止';
                 break;
               case error.MEDIA_ERR_NETWORK:
-                errorMsg = 'Network error while loading video\\n\\nPlease check your internet connection and try again.';
+                errorMsg = '載入影片時發生網路錯誤\\n\\n請檢查網路連線並重試。';
                 break;
               case error.MEDIA_ERR_DECODE:
-                errorMsg = 'Video decoding error\\n\\nThe video codec may not be supported by your device.\\n\\niOS Limitation: This DASH stream uses a codec that iOS WebView cannot decode.\\n\\nPossible causes:\\n• VP8/VP9 codec (not supported on iOS)\\n• Unsupported audio codec\\n• Invalid encoding parameters\\n\\nRecommendation: Use streams with H.264 video + AAC audio for iOS.';
+                errorMsg = '影片解碼錯誤\\n\\n您的裝置可能不支援該影片編解碼器。\\n\\niOS 限制：此 DASH 串流使用 iOS WebView 無法解碼的編解碼器。\\n\\n可能原因：\\n• VP8/VP9 編解碼器（iOS 不支援）\\n• 不支援的音訊編解碼器\\n• 無效的編碼參數\\n\\n建議：使用 H.264 影片 + AAC 音訊的串流。';
                 break;
               case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                errorMsg = 'Video format not supported\\n\\niOS Limitation: iOS WebView has limited codec support for DASH streams.\\n\\nThis player uses dash.js, but the underlying codec must still be supported by WebKit.\\n\\nSupported codecs on iOS:\\n• Video: H.264, H.265/HEVC\\n• Audio: AAC, MP3\\n\\nNot supported:\\n• Video: VP8, VP9, AV1\\n• Audio: Vorbis, Opus (limited)\\n\\nRecommendation: Use HLS (.m3u8) format instead for best iOS compatibility.';
+                errorMsg = '不支援的影片格式\\n\\n⚠️ iOS 限制檢測\\n\\niOS 不原生支援 DASH 格式。此播放器使用 dash.js 啟用 DASH 播放，但仍需要編解碼器相容性。\\n\\n✅ iOS 支援的編解碼器：\\n• 影片：H.264、H.265/HEVC\\n• 音訊：AAC、MP3\\n\\n❌ 不支援：\\n• 影片：VP8、VP9、AV1\\n• 音訊：Vorbis、Opus（有限支援）\\n\\n💡 建議：\\n為獲得最佳 iOS 相容性，請使用 HLS (.m3u8) 格式代替 DASH (.mpd)。';
                 break;
               default:
-                errorMsg = 'Unknown video error (code: ' + error.code + ')' + (error.message ? '\\n\\n' + error.message : '');
+                errorMsg = '未知影片錯誤 (代碼: ' + error.code + ')' + (error.message ? '\\n\\n' + error.message : '');
             }
           }
           
@@ -373,13 +378,13 @@ export default function DashPlayer({
 
         setTimeout(function() {
           if (!loadingOverlay.classList.contains('hidden') && !playbackStarted) {
-            showError('Loading timeout\\n\\nThe video took too long to load.\\n\\nPossible causes:\\n• Slow network connection\\n• Server not responding\\n• Invalid stream URL\\n• Codec compatibility issues\\n\\nPlease try again or use a different stream.');
+            showError('載入逾時\\n\\n影片載入時間過長。\\n\\n可能原因：\\n• 網路連線緩慢\\n• 伺服器未回應\\n• 無效的串流網址\\n• 編解碼器相容性問題\\n\\n請重試或使用其他串流。');
           }
         }, 30000);
 
       } catch (error) {
         console.error('[DashPlayer] Initialization error:', error);
-        showError('Failed to initialize DASH player\\n\\nError: ' + (error.message || String(error)));
+        showError('無法初始化 DASH 播放器\\n\\n錯誤: ' + (error.message || String(error)));
       }
     })();
   </script>
@@ -398,7 +403,7 @@ export default function DashPlayer({
       } else if (data.type === 'error') {
         console.error('[DashPlayer] Error from WebView:', data.message);
         setIsLoading(false);
-        onError?.(data.message || 'Unknown DASH player error');
+        onError?.(data.message || '未知 DASH 播放器錯誤');
       }
     } catch (e) {
       console.error('[DashPlayer] Failed to parse message:', e);
@@ -427,7 +432,7 @@ export default function DashPlayer({
           const { nativeEvent } = syntheticEvent;
           console.error('[DashPlayer] WebView error:', nativeEvent);
           setIsLoading(false);
-          onError?.('Failed to load DASH player: ' + nativeEvent.description);
+          onError?.('無法載入 DASH 播放器: ' + nativeEvent.description);
         }}
       />
 
@@ -450,8 +455,8 @@ export default function DashPlayer({
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={Colors.accent.primary} />
-          <Text style={styles.loadingText}>Loading DASH stream...</Text>
+          <ActivityIndicator size="large" color="#69E7D8" />
+          <Text style={styles.loadingText}>載入 DASH 串流中...</Text>
         </View>
       )}
     </View>
