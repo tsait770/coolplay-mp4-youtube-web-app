@@ -30,6 +30,7 @@ import SocialMediaPlayer from '@/components/SocialMediaPlayer';
 import YouTubePlayerStandalone from '@/components/YouTubePlayerStandalone';
 import DashPlayer from '@/components/DashPlayer';
 import HlsPlayer from '@/components/HlsPlayer';
+import EnhancedMP4Player from '@/components/EnhancedMP4Player';
 import Colors from '@/constants/colors';
 
 export interface UniversalVideoPlayerProps {
@@ -780,84 +781,18 @@ export default function UniversalVideoPlayer({
   };
 
   const renderNativePlayer = () => {
-    console.log('[UniversalVideoPlayer] Rendering native player for:', url);
+    console.log('[UniversalVideoPlayer] Rendering enhanced MP4 player for:', url);
 
     return (
-      <TouchableOpacity
-        style={styles.videoContainer}
-        activeOpacity={1}
-        onPress={() => setShowControls(true)}
-      >
-        <VideoView
-          player={player}
-          style={styles.video}
-          contentFit="contain"
-          nativeControls={false}
-          allowsFullscreen
-          allowsPictureInPicture
-        />
-        
-        {showControls && (
-          <View style={styles.controlsOverlay}>
-            <View style={styles.controlsContainer}>
-              <TouchableOpacity
-                style={styles.controlButton}
-                onPress={() => handleSeek(-10)}
-              >
-                <SkipBack size={24} color="#fff" />
-                <Text style={styles.controlButtonText}>10s</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.controlButtonLarge}
-                onPress={handlePlayPause}
-              >
-                {isPlaying ? (
-                  <Pause size={48} color="#fff" fill="#fff" />
-                ) : (
-                  <Play size={48} color="#fff" fill="#fff" />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.controlButton}
-                onPress={() => handleSeek(10)}
-              >
-                <SkipForward size={24} color="#fff" />
-                <Text style={styles.controlButtonText}>10s</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.bottomControls}>
-              <TouchableOpacity style={styles.controlButton} onPress={handleMute}>
-                {isMuted ? (
-                  <VolumeX size={24} color="#fff" />
-                ) : (
-                  <Volume2 size={24} color="#fff" />
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.controlButton}
-                onPress={() => setIsFullscreen(!isFullscreen)}
-              >
-                {isFullscreen ? (
-                  <Minimize size={24} color="#fff" />
-                ) : (
-                  <Maximize size={24} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.accent.primary} />
-            <Text style={styles.loadingText}>Loading video...</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <EnhancedMP4Player
+        url={url}
+        onError={onError}
+        onPlaybackStart={onPlaybackStart}
+        onPlaybackEnd={onPlaybackEnd}
+        autoPlay={autoPlay}
+        style={style}
+        onBackPress={onBackPress}
+      />
     );
   };
 
