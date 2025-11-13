@@ -28,6 +28,7 @@ import { useMembership } from '@/providers/MembershipProvider';
 import SocialMediaPlayer from '@/components/SocialMediaPlayer';
 import YouTubePlayerStandalone from '@/components/YouTubePlayerStandalone';
 import DashPlayer from '@/components/DashPlayer';
+import HlsPlayer from '@/components/HlsPlayer';
 import Colors from '@/constants/colors';
 
 export interface UniversalVideoPlayerProps {
@@ -357,6 +358,22 @@ export default function UniversalVideoPlayer({
           }}
           isFullscreen={isFullscreen}
           toggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+          onBackPress={onBackPress}
+        />
+      );
+    }
+
+    if (sourceInfo.type === 'hls' || (sourceInfo.type === 'stream' && sourceInfo.streamType === 'hls')) {
+      console.log('[UniversalVideoPlayer] Using HLS player for .m3u8 stream');
+      return (
+        <HlsPlayer
+          url={url}
+          onError={onError}
+          onLoad={() => {
+            setIsLoading(false);
+            setRetryCount(0);
+          }}
+          autoPlay={autoPlay}
           onBackPress={onBackPress}
         />
       );
