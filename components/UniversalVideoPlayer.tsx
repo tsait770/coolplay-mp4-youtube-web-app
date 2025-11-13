@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Text,
   Animated,
+  Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -380,6 +381,36 @@ export default function UniversalVideoPlayer({
     }
 
     if (sourceInfo.type === 'dash' || (sourceInfo.type === 'stream' && sourceInfo.streamType === 'dash')) {
+      console.log('[UniversalVideoPlayer] DASH stream detected');
+      
+      // Check if iOS
+      if (Platform.OS === 'ios') {
+        console.warn('[UniversalVideoPlayer] DASH format not supported on iOS');
+        
+        // Show iOS-specific error immediately
+        const iosError = `iOS 不支援 DASH 格式\n\n⚠️ iOS 限制說明：\nDASH (.mpd) 格式與 iOS 不相容。即使使用 WebView 播放器，iOS WebKit 引擎的編解碼器限制仍會導致播放失敗。\n\n✅ 建議的替代方案：\n\n1. 使用 HLS (.m3u8) 格式\n   • iOS 原生完整支援\n   • 最佳相容性和效能\n   • 推薦用於 Apple 裝置\n\n2. 使用直接 MP4 連結\n   • 廣泛相容性\n   • 簡單可靠\n   • 適用於短片\n\n3. 在 Android 裝置上播放\n   • Android 完全支援 DASH\n   • 使用 Android 手機或平板\n\n💡 技術說明：\nDASH 需要的編解碼器（如 VP8、VP9、AV1）在 iOS 上不可用。只有 H.264/H.265 視訊和 AAC/MP3 音訊在 iOS 上受支援。`;
+        
+        // Call error handler immediately
+        if (onError) {
+          onError(iosError);
+        }
+        
+        // Still render DashPlayer component to show the error UI
+        return (
+          <DashPlayer
+            url={url}
+            onError={onError}
+            onLoad={() => {
+              setIsLoading(false);
+              setRetryCount(0);
+            }}
+            autoPlay={autoPlay}
+            onBackPress={onBackPress}
+          />
+        );
+      }
+      
+      // For non-iOS platforms, proceed with DASH player
       console.log('[UniversalVideoPlayer] Using DASH player for .mpd stream');
       return (
         <DashPlayer
