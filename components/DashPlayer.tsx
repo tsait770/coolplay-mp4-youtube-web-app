@@ -134,6 +134,7 @@ export default function DashPlayer({
       line-height: 1.6;
       color: #ccc;
       max-width: 90%;
+      white-space: pre-wrap;
     }
   </style>
   <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
@@ -149,7 +150,7 @@ export default function DashPlayer({
       <div class="error-title">Unable to Play Video</div>
       <div class="error-message" id="errorMessage"></div>
     </div>
-    <video id="video" controls ${autoPlay ? 'autoplay' : ''} playsinline webkit-playsinline></video>
+    <video id="video" controls ${autoPlay ? 'autoplay' : ''} playsinline webkit-playsinline preload="auto"></video>
   </div>
 
   <script>
@@ -161,6 +162,8 @@ export default function DashPlayer({
       const videoUrl = '${url}';
 
       console.log('[DashPlayer] Initializing with URL:', videoUrl);
+      console.log('[DashPlayer] User Agent:', navigator.userAgent);
+      console.log('[DashPlayer] Platform:', navigator.platform);
 
       function hideLoading() {
         loadingOverlay.classList.add('hidden');
@@ -182,90 +185,145 @@ export default function DashPlayer({
         }
       }
 
-      // Check if dash.js is loaded
       if (typeof dashjs === 'undefined') {
         showError('DASH.js library failed to load. Please check your internet connection.');
         return;
       }
 
       try {
-        // Create DASH player
         const player = dashjs.MediaPlayer().create();
         
-        // Configure player
+        console.log('[DashPlayer] dash.js version:', dashjs.Version);
+        
         player.updateSettings({
+          debug: {
+            logLevel: dashjs.Debug.LOG_LEVEL_DEBUG
+          },
           streaming: {
             buffer: {
               fastSwitchEnabled: true,
-              bufferTimeAtTopQuality: 30,
-              bufferTimeAtTopQualityLongForm: 60,
+              bufferTimeAtTopQuality: 20,
+              bufferTimeAtTopQualityLongForm: 30,
+              stableBufferTime: 12,
+              bufferTimeDefault: 4,
             },
             abr: {
               autoSwitchBitrate: {
                 video: true,
                 audio: true,
               },
+              initialBitrate: {
+                video: 1000,
+                audio: 100
+              },
+              limitBitrateByPortal: false,
             },
+            gaps: {
+              jumpGaps: true,
+              jumpLargeGaps: true,
+              smallGapLimit: 1.5,
+            },
+            lowLatencyEnabled: false,
+            liveDelay: 3,
           },
         });
 
-        // Setup event listeners
+        let hasError = false;
+        let playbackStarted = false;
+
         player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
-          console.error('[DashPlayer] DASH error:', JSON.stringify(e, null, 2));
+          if (hasError) return;
+          hasError = true;
+          
+          console.error('[DashPlayer] DASH error event:', e);
           let errorMsg = 'Failed to play DASH stream';
           
-          // Extract error details
-          const errorType = e.error || e.type || 'unknown';
-          const errorCode = e.code || '';
-          const errorMessage = e.message || '';
+          const errorType = e.error ? (typeof e.error === 'object' ? e.error.code || e.error.message : e.error) : null;
+          const errorCode = e.code || (e.error && e.error.code);
+          const errorData = e.error && e.error.data ? JSON.stringify(e.error.data) : null;
           
           console.log('[DashPlayer] Error details:', {
             type: errorType,
             code: errorCode,
-            message: errorMessage,
-            event: e
+            message: e.message,
+            errorData: errorData,
+            fullError: JSON.stringify(e, null, 2)
           });
           
-          if (errorType === 'download' || errorCode === 'DOWNLOAD_ERROR') {
+          if (errorType === 'download' || String(errorCode).includes('DOWNLOAD')) {
             errorMsg = 'Failed to download DASH manifest\\n\\nPlease check:\\n• Video URL is correct\\n• Server is accessible\\n• Network connection is stable';
-          } else if (errorType === 'manifestError' || errorCode === 'MANIFEST_LOADER_PARSING_FAILURE_ERROR_CODE') {
+          } else if (String(errorCode).includes('MANIFEST') || String(errorType).includes('manifest')) {
             errorMsg = 'Invalid DASH manifest file\\n\\nThe stream format may be corrupted or unsupported.';
-          } else if (errorType === 'key_session' || errorCode === 'MEDIA_KEYERR_CODE') {
+          } else if (String(errorCode).includes('MEDIA_KEYERR') || String(errorType).includes('key_session')) {
             errorMsg = 'DRM protected content detected\\n\\nThis video requires DRM authentication which is not currently supported.';
-          } else if (errorMessage) {
-            errorMsg = 'DASH Error: ' + errorMessage;
+          } else if (String(errorCode).includes('CODEC') || String(errorType).includes('codec')) {
+            errorMsg = 'Codec not supported\\n\\niOS WebView does not support this video codec.\\n\\nThe stream may use VP8/VP9 codec which is not compatible with iOS.\\n\\nRecommendation: Use H.264/H.265 codec for iOS.';
+          } else if (e.message) {
+            errorMsg = 'DASH Error: ' + e.message;
           } else if (errorCode) {
-            errorMsg = 'DASH Error: ' + errorCode;
-          } else if (typeof errorType === 'string') {
-            errorMsg = 'DASH Error: ' + errorType;
+            errorMsg = 'DASH Error Code: ' + errorCode;
+          } else if (errorType) {
+            errorMsg = 'DASH Error: ' + String(errorType);
           }
           
           showError(errorMsg);
         });
 
         player.on(dashjs.MediaPlayer.events.PLAYBACK_ERROR, function(e) {
-          console.error('[DashPlayer] Playback error:', JSON.stringify(e, null, 2));
-          const errorMsg = e.message || e.error || e.type || 'Unknown playback error';
-          showError('Playback failed\\n\\nError: ' + errorMsg);
+          if (hasError) return;
+          hasError = true;
+          
+          console.error('[DashPlayer] Playback error event:', e);
+          const errorMsg = e.message || (e.error && e.error.message) || 'Unknown playback error';
+          showError('Playback failed\\n\\n' + errorMsg);
         });
 
         player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, function() {
           console.log('[DashPlayer] Stream initialized successfully');
+          playbackStarted = true;
           hideLoading();
         });
 
         player.on(dashjs.MediaPlayer.events.CAN_PLAY, function() {
-          console.log('[DashPlayer] Stream ready to play');
+          console.log('[DashPlayer] Stream ready to play (CAN_PLAY)');
+          playbackStarted = true;
+          hideLoading();
+        });
+        
+        player.on(dashjs.MediaPlayer.events.PLAYBACK_STARTED, function() {
+          console.log('[DashPlayer] Playback started');
+          playbackStarted = true;
           hideLoading();
         });
 
-        // Video element event listeners
+        player.on(dashjs.MediaPlayer.events.MANIFEST_LOADED, function(e) {
+          console.log('[DashPlayer] Manifest loaded:', e);
+        });
+        
+        player.on(dashjs.MediaPlayer.events.STREAM_ACTIVATED, function(e) {
+          console.log('[DashPlayer] Stream activated:', e);
+        });
+
         video.addEventListener('loadedmetadata', function() {
           console.log('[DashPlayer] Video metadata loaded');
+          console.log('[DashPlayer] Video info:', {
+            duration: video.duration,
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            readyState: video.readyState
+          });
+          hideLoading();
+        });
+        
+        video.addEventListener('canplay', function() {
+          console.log('[DashPlayer] Video can play');
           hideLoading();
         });
 
         video.addEventListener('error', function(e) {
+          if (hasError) return;
+          hasError = true;
+          
           console.error('[DashPlayer] Video element error:', e);
           const error = video.error;
           let errorMsg = 'Video playback error';
@@ -288,33 +346,31 @@ export default function DashPlayer({
                 errorMsg = 'Network error while loading video\\n\\nPlease check your internet connection and try again.';
                 break;
               case error.MEDIA_ERR_DECODE:
-                errorMsg = 'Video decoding error\\n\\nThe video codec may not be supported by your device.\\n\\niOS Note: DASH streams with certain codecs may not work on iOS.';
+                errorMsg = 'Video decoding error\\n\\nThe video codec may not be supported by your device.\\n\\niOS Limitation: This DASH stream uses a codec that iOS WebView cannot decode.\\n\\nPossible causes:\\n• VP8/VP9 codec (not supported on iOS)\\n• Unsupported audio codec\\n• Invalid encoding parameters\\n\\nRecommendation: Use streams with H.264 video + AAC audio for iOS.';
                 break;
               case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                errorMsg = 'Video format not supported\\n\\niOS does not natively support DASH format.\\n\\nThis player uses dash.js to enable DASH playback, but some streams may still be incompatible.\\n\\nTip: Try using HLS (.m3u8) format instead for better iOS compatibility.';
+                errorMsg = 'Video format not supported\\n\\niOS Limitation: iOS WebView has limited codec support for DASH streams.\\n\\nThis player uses dash.js, but the underlying codec must still be supported by WebKit.\\n\\nSupported codecs on iOS:\\n• Video: H.264, H.265/HEVC\\n• Audio: AAC, MP3\\n\\nNot supported:\\n• Video: VP8, VP9, AV1\\n• Audio: Vorbis, Opus (limited)\\n\\nRecommendation: Use HLS (.m3u8) format instead for best iOS compatibility.';
                 break;
               default:
-                errorMsg = 'Unknown video error' + (error.message ? ': ' + error.message : '');
+                errorMsg = 'Unknown video error (code: ' + error.code + ')' + (error.message ? '\\n\\n' + error.message : '');
             }
           }
           
           showError(errorMsg);
         });
 
-        // Initialize player with video URL
         console.log('[DashPlayer] Initializing player with URL:', videoUrl);
         player.initialize(video, videoUrl, ${autoPlay});
 
-        // Timeout for loading
         setTimeout(function() {
-          if (!loadingOverlay.classList.contains('hidden')) {
-            showError('Loading timeout\\n\\nThe video took too long to load. Please try again.');
+          if (!loadingOverlay.classList.contains('hidden') && !playbackStarted) {
+            showError('Loading timeout\\n\\nThe video took too long to load.\\n\\nPossible causes:\\n• Slow network connection\\n• Server not responding\\n• Invalid stream URL\\n• Codec compatibility issues\\n\\nPlease try again or use a different stream.');
           }
         }, 30000);
 
       } catch (error) {
         console.error('[DashPlayer] Initialization error:', error);
-        showError('Failed to initialize DASH player\\n\\nError: ' + error.message);
+        showError('Failed to initialize DASH player\\n\\nError: ' + (error.message || String(error)));
       }
     })();
   </script>
