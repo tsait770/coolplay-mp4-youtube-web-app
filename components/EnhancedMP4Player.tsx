@@ -8,7 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
-  ScrollView,
+  Vibration,
 } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +29,7 @@ import {
   X,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import TimeWheelPickerModal from './TimeWheelPicker';
 
 interface EnhancedMP4PlayerProps {
   url: string;
@@ -66,6 +67,8 @@ export default function EnhancedMP4Player({
   const [abLoopEnd, setAbLoopEnd] = useState<number | null>(null);
   const [isLooping, setIsLooping] = useState(false);
   const [showAbLoopMenu, setShowAbLoopMenu] = useState(false);
+  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
+  const [timePickerMode, setTimePickerMode] = useState<'A' | 'B'>('A');
 
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backButtonOpacity = useRef(new Animated.Value(1)).current;
@@ -187,12 +190,23 @@ export default function EnhancedMP4Player({
   }, [player]);
 
   const handleSetPointA = useCallback(() => {
-    setAbLoopStart(currentTime);
-  }, [currentTime]);
+    setTimePickerMode('A');
+    setShowTimePickerModal(true);
+  }, []);
 
   const handleSetPointB = useCallback(() => {
-    setAbLoopEnd(currentTime);
-  }, [currentTime]);
+    setTimePickerMode('B');
+    setShowTimePickerModal(true);
+  }, []);
+
+  const handleTimePickerConfirm = useCallback((timeInSeconds: number) => {
+    if (timePickerMode === 'A') {
+      setAbLoopStart(timeInSeconds);
+    } else {
+      setAbLoopEnd(timeInSeconds);
+    }
+    setShowTimePickerModal(false);
+  }, [timePickerMode]);
 
   const handleToggleLoop = useCallback(() => {
     if (abLoopStart !== null && abLoopEnd !== null && abLoopStart < abLoopEnd) {
@@ -217,6 +231,16 @@ export default function EnhancedMP4Player({
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const playScrollSound = useCallback(async () => {
+    try {
+      if (Platform.OS !== 'web') {
+        Vibration.vibrate(1);
+      }
+    } catch (error) {
+      console.log('[EnhancedMP4Player] Haptic feedback error:', error);
+    }
+  }, []);
 
   const renderSpeedMenu = () => {
     const speeds: PlaybackSpeed[] = [0.5, 1.0, 1.25, 1.5, 1.75, 2.0];
@@ -286,31 +310,33 @@ export default function EnhancedMP4Player({
             </View>
 
             <View style={styles.abLoopInfo}>
-              <View style={styles.abLoopPointRow}>
-                <Text style={styles.abLoopPointLabel}>起點 A:</Text>
-                <Text style={styles.abLoopPointValue}>
-                  {abLoopStart !== null ? formatTime(abLoopStart) : '--:--'}
-                </Text>
-                <TouchableOpacity
-                  style={styles.abLoopButton}
-                  onPress={handleSetPointA}
-                >
-                  <Text style={styles.abLoopButtonText}>設置 A 點</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.abLoopPointRowButton}
+                onPress={handleSetPointA}
+                activeOpacity={0.7}
+              >
+                <View style={styles.abLoopPointRowContent}>
+                  <Text style={styles.abLoopPointLabel}>起點 A:</Text>
+                  <Text style={styles.abLoopPointValue}>
+                    {abLoopStart !== null ? formatTime(abLoopStart) : '0:00'}
+                  </Text>
+                </View>
+                <Text style={styles.abLoopButtonArrow}>設置 A 點</Text>
+              </TouchableOpacity>
 
-              <View style={styles.abLoopPointRow}>
-                <Text style={styles.abLoopPointLabel}>終點 B:</Text>
-                <Text style={styles.abLoopPointValue}>
-                  {abLoopEnd !== null ? formatTime(abLoopEnd) : '--:--'}
-                </Text>
-                <TouchableOpacity
-                  style={styles.abLoopButton}
-                  onPress={handleSetPointB}
-                >
-                  <Text style={styles.abLoopButtonText}>設置 B 點</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={styles.abLoopPointRowButton}
+                onPress={handleSetPointB}
+                activeOpacity={0.7}
+              >
+                <View style={styles.abLoopPointRowContent}>
+                  <Text style={styles.abLoopPointLabel}>終點 B:</Text>
+                  <Text style={styles.abLoopPointValue}>
+                    {abLoopEnd !== null ? formatTime(abLoopEnd) : formatTime(duration)}
+                  </Text>
+                </View>
+                <Text style={styles.abLoopButtonArrow}>設置 B 點</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.abLoopActions}>
@@ -524,6 +550,15 @@ export default function EnhancedMP4Player({
 
       {renderSpeedMenu()}
       {renderAbLoopMenu()}
+      <TimeWheelPickerModal
+        visible={showTimePickerModal}
+        maxDuration={duration}
+        initialValue={timePickerMode === 'A' ? (abLoopStart || 0) : (abLoopEnd || duration)}
+        mode={timePickerMode}
+        onConfirm={handleTimePickerConfirm}
+        onCancel={() => setShowTimePickerModal(false)}
+        onScroll={playScrollSound}
+      />
     </View>
   );
 }
@@ -743,17 +778,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 12,
   },
+  abLoopPointRowButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  abLoopPointRowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   abLoopPointLabel: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    minWidth: 60,
   },
   abLoopPointValue: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    minWidth: 50,
+    color: Colors.accent.primary,
+    fontSize: 17,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'] as any,
   },
   abLoopButton: {
     flex: 1,
@@ -766,6 +816,11 @@ const styles = StyleSheet.create({
   abLoopButtonText: {
     color: '#000',
     fontSize: 13,
+    fontWeight: '600',
+  },
+  abLoopButtonArrow: {
+    color: Colors.accent.primary,
+    fontSize: 14,
     fontWeight: '600',
   },
   abLoopActions: {
