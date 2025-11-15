@@ -51,10 +51,22 @@ export default function MP3Player({
   const backButtonOpacity = useRef(new Animated.Value(1)).current;
   const progressUpdateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const player = useVideoPlayer(url, (player) => {
+  // Ensure proper URI format for local files
+  const processedUrl = React.useMemo(() => {
+    // Check if it's a local file
+    if (url.startsWith('file://') || url.startsWith('content://')) {
+      console.log('[MP3Player] Local file detected:', url);
+      return url;
+    }
+    // For non-local files, return as-is
+    return url;
+  }, [url]);
+
+  const player = useVideoPlayer(processedUrl, (player) => {
     player.loop = false;
     player.muted = isMuted;
     if (autoPlay) {
+      console.log('[MP3Player] Auto-playing audio:', processedUrl);
       player.play();
     }
   });
@@ -62,7 +74,10 @@ export default function MP3Player({
   useEffect(() => {
     if (!player) return;
 
+    console.log('[MP3Player] Setting up player listeners for:', processedUrl);
+
     const subscription = player.addListener('playingChange', (event) => {
+      console.log('[MP3Player] Playing state changed:', event.isPlaying);
       setIsPlaying(event.isPlaying);
       if (event.isPlaying) {
         onPlaybackStart?.();
@@ -70,12 +85,25 @@ export default function MP3Player({
     });
 
     const statusSubscription = player.addListener('statusChange', (status) => {
+      console.log('[MP3Player] Status changed:', status.status);
       if (status.status === 'readyToPlay') {
+        console.log('[MP3Player] Audio ready to play, duration:', player.duration);
         setIsLoading(false);
         setDuration(player.duration);
       } else if (status.status === 'error') {
-        const errorMsg = 'Audio playback error';
-        console.error('[MP3Player] Error:', status.error);
+        let errorMsg = 'Audio playback error';
+        if (status.error) {
+          if (typeof status.error === 'object' && 'message' in status.error) {
+            errorMsg = String((status.error as any).message || 'Unknown audio error');
+          } else if (typeof status.error === 'string') {
+            errorMsg = status.error;
+          }
+        }
+        console.error('[MP3Player] Playback error:', {
+          error: status.error,
+          errorMessage: errorMsg,
+          url: processedUrl,
+        });
         setIsLoading(false);
         onError?.(errorMsg);
       }
@@ -85,7 +113,7 @@ export default function MP3Player({
       subscription.remove();
       statusSubscription.remove();
     };
-  }, [player, onPlaybackStart, onError]);
+  }, [player, processedUrl, onPlaybackStart, onError]);
 
   useEffect(() => {
     if (!player) return;
