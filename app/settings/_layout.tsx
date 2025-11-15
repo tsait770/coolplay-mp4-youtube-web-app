@@ -187,18 +187,21 @@ export default function SettingsLayout() {
         name="voice/index"
         options={{
           title: t("voice_control"),
+          headerBackVisible: true,
         }}
       />
       <Stack.Screen
         name="voice/commands"
         options={{
           title: t("custom_commands"),
+          headerBackVisible: true,
         }}
       />
       <Stack.Screen
         name="voice/assistant"
         options={{
           title: t("siri_voice_assistant"),
+          headerBackVisible: true,
         }}
       />
       <Stack.Screen

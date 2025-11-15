@@ -1,15 +1,60 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { Mic, Volume2, Sparkles } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export default function AssistantScreen() {
   const { t } = useTranslation();
 
+  const features = [
+    {
+      icon: Mic,
+      title: "Voice Recognition",
+      description: "Advanced voice recognition with multi-language support",
+    },
+    {
+      icon: Volume2,
+      title: "Voice Feedback",
+      description: "Customize voice responses and audio feedback",
+    },
+    {
+      icon: Sparkles,
+      title: "Smart Suggestions",
+      description: "AI-powered command suggestions based on usage",
+    },
+  ];
+
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>{t("siri_voice_assistant")}</Text>
-      <Text style={styles.subtext}>Voice assistant settings coming soon</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.headerSection}>
+          <Mic size={56} color={Colors.primary.accent} strokeWidth={2} />
+          <Text style={styles.title}>{t("siri_voice_assistant")}</Text>
+          <Text style={styles.subtitle}>
+            Voice assistant settings will be available soon
+          </Text>
+        </View>
+
+        <View style={styles.featuresSection}>
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <View key={index} style={styles.featureCard}>
+                <View style={styles.featureIconContainer}>
+                  <Icon size={24} color={Colors.primary.accent} strokeWidth={2} />
+                </View>
+                <View style={styles.featureContent}>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureDescription}>
+                    {feature.description}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -18,18 +63,63 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.primary.bg,
-    justifyContent: "center",
-    alignItems: "center",
+  },
+  scrollContent: {
     padding: 20,
   },
-  text: {
-    fontSize: 24,
-    fontWeight: "bold" as const,
-    color: Colors.primary.text,
-    marginBottom: 8,
+  headerSection: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
-  subtext: {
+  title: {
+    fontSize: 28,
+    fontWeight: "700" as const,
+    color: Colors.primary.text,
+    marginTop: 20,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  subtitle: {
     fontSize: 16,
     color: Colors.primary.textSecondary,
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  featuresSection: {
+    marginTop: 24,
+  },
+  featureCard: {
+    flexDirection: "row",
+    backgroundColor: Colors.secondary.bg,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.card.border,
+  },
+  featureIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: Colors.primary.accent + "15",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  featureContent: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  featureTitle: {
+    fontSize: 17,
+    fontWeight: "600" as const,
+    color: Colors.primary.text,
+    marginBottom: 4,
+  },
+  featureDescription: {
+    fontSize: 14,
+    color: Colors.primary.textSecondary,
+    lineHeight: 20,
   },
 });
