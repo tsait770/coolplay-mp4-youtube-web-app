@@ -31,6 +31,7 @@ import YouTubePlayerStandalone from '@/components/YouTubePlayerStandalone';
 import DashPlayer from '@/components/DashPlayer';
 import HlsPlayer from '@/components/HlsPlayer';
 import EnhancedMP4Player from '@/components/EnhancedMP4Player';
+import MP3Player from '@/components/MP3Player';
 import Colors from '@/constants/colors';
 
 export interface UniversalVideoPlayerProps {
@@ -787,6 +788,22 @@ export default function UniversalVideoPlayer({
   };
 
   const renderNativePlayer = () => {
+    // Check if it's an audio file
+    if (sourceInfo.isAudioOnly || sourceInfo.type === 'audio') {
+      console.log('[UniversalVideoPlayer] Rendering MP3 player for:', url);
+      return (
+        <MP3Player
+          url={url}
+          onError={onError}
+          onPlaybackStart={onPlaybackStart}
+          onPlaybackEnd={onPlaybackEnd}
+          autoPlay={autoPlay}
+          style={style}
+          onBackPress={onBackPress}
+        />
+      );
+    }
+
     console.log('[UniversalVideoPlayer] Rendering enhanced MP4 player for:', url);
 
     return (
@@ -850,6 +867,7 @@ export default function UniversalVideoPlayer({
     !useSocialMediaPlayer &&
     !shouldUseWebView &&
     (sourceInfo.type === 'direct' ||
+    sourceInfo.type === 'audio' ||
     sourceInfo.type === 'hls' ||
     (sourceInfo.type === 'stream' && sourceInfo.streamType === 'hls'));
 
