@@ -9,9 +9,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
-import { X, Link, AlertCircle, Crown, Star, Sparkles } from 'lucide-react-native';
+import { X, Link, AlertCircle, Crown, Star, Sparkles, FolderOpen } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import Colors from '@/constants/colors';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMembership } from '@/providers/MembershipProvider';
@@ -37,6 +39,104 @@ export default function VideoURLModal({ visible, onClose, onSubmit }: VideoURLMo
   const handleClose = () => {
     setUrl('');
     onClose();
+  };
+
+  const handlePickFile = async () => {
+    try {
+      console.log('[VideoURLModal] Opening document picker...');
+      
+      // Pick a document with supported video and audio formats
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          // Video formats
+          'video/*',
+          'video/mp4',
+          'video/webm',
+          'video/ogg',
+          'video/quicktime',
+          'video/x-matroska',
+          'video/x-msvideo',
+          'video/x-flv',
+          'video/x-ms-wmv',
+          'video/3gpp',
+          // Audio formats
+          'audio/*',
+          'audio/mpeg',
+          'audio/mp3',
+          'audio/mp4',
+          'audio/x-m4a',
+          'audio/wav',
+          'audio/x-wav',
+          'audio/flac',
+          'audio/aac',
+          'audio/x-aac',
+          // Stream formats
+          'application/x-mpegurl',
+          'application/vnd.apple.mpegurl',
+          'application/dash+xml',
+        ],
+        copyToCacheDirectory: false,
+        multiple: false,
+      });
+
+      console.log('[VideoURLModal] Document picker result:', JSON.stringify(result, null, 2));
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const fileUri = asset.uri;
+        
+        console.log('[VideoURLModal] Selected file:', {
+          uri: fileUri,
+          name: asset.name,
+          mimeType: asset.mimeType,
+          size: asset.size,
+        });
+
+        // Validate file size (max 2GB for safety)
+        if (asset.size && asset.size > 2 * 1024 * 1024 * 1024) {
+          Alert.alert(
+            t('error'),
+            '檔案太大。請選擇小於 2GB 的檔案。',
+            [{ text: t('ok') }]
+          );
+          return;
+        }
+
+        // For iOS, ensure we handle the correct URI format
+        let processedUri = fileUri;
+        
+        // iOS may return file:// URI or content:// URI
+        // We need to ensure proper format
+        if (Platform.OS === 'ios') {
+          // iOS URIs are usually already in the correct format
+          if (!fileUri.startsWith('file://') && !fileUri.startsWith('content://')) {
+            processedUri = `file://${fileUri}`;
+          }
+          console.log('[VideoURLModal] iOS processed URI:', processedUri);
+        } else if (Platform.OS === 'android') {
+          // Android typically returns content:// URI which is correct
+          console.log('[VideoURLModal] Android URI:', processedUri);
+        }
+
+        // Set the URI in the input field
+        setUrl(processedUri);
+        
+        Alert.alert(
+          t('file_selected'),
+          `${asset.name}\n\n點擊「載入影片」開始播放`,
+          [{ text: t('ok') }]
+        );
+      } else {
+        console.log('[VideoURLModal] File selection canceled');
+      }
+    } catch (error) {
+      console.error('[VideoURLModal] Error picking file:', error);
+      Alert.alert(
+        t('error'),
+        `無法選擇檔案: ${error instanceof Error ? error.message : '未知錯誤'}`,
+        [{ text: t('ok') }]
+      );
+    }
   };
 
   return (
@@ -83,6 +183,24 @@ export default function VideoURLModal({ visible, onClose, onSubmit }: VideoURLMo
                 autoCorrect={false}
                 keyboardType="url"
               />
+              
+              {/* File Picker Button */}
+              <TouchableOpacity
+                style={styles.filePickerButton}
+                onPress={handlePickFile}
+              >
+                <FolderOpen size={20} color={Colors.primary.accent} />
+                <Text style={styles.filePickerButtonText}>
+                  {t('select_local_file') || '選擇本地檔案'}
+                </Text>
+              </TouchableOpacity>
+              
+              <View style={styles.filePickerHint}>
+                <FontAwesome5 name="info-circle" size={12} color={Colors.primary.textSecondary} />
+                <Text style={styles.filePickerHintText}>
+                  支援 MP4, MKV, AVI, MOV, MP3, M4A, WAV, FLAC 等格式
+                </Text>
+              </View>
             </View>
 
             {/* Supported Video Sources */}
@@ -360,6 +478,35 @@ const styles = StyleSheet.create({
     color: Colors.primary.text,
     borderWidth: 1,
     borderColor: Colors.card.border,
+  },
+  filePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: Colors.card.bg,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary.accent,
+    borderStyle: 'dashed' as const,
+  },
+  filePickerButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.primary.accent,
+  },
+  filePickerHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  filePickerHintText: {
+    fontSize: 12,
+    color: Colors.primary.textSecondary,
+    flex: 1,
   },
   section: {
     marginBottom: 24,
