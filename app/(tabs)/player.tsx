@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoView, useVideoPlayer } from "expo-video";
-import UniversalMediaPlayer from "@/components/UniversalMediaPlayer";
+import UniversalVideoPlayer from "@/components/UniversalVideoPlayer";
 import * as DocumentPicker from "expo-document-picker";
 import {
   ChevronDown,
@@ -109,17 +109,11 @@ export default function PlayerScreen() {
   const defaultVideoUri = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
   const [videoPlayerSource, setVideoPlayerSource] = useState(defaultVideoUri);
   
-  const mediaRef = useRef<{
-    seek: (time: number) => void;
-    play: () => void;
-    pause: () => void;
-    setVolume: (volume: number) => void;
-    forward10: () => void;
-    rewind10: () => void;
-    stop: () => void;
-    mute: () => void;
-    unmute: () => void;
-  }>(null);
+  // Only initialize VideoPlayer for native-supported formats
+  // UniversalVideoPlayer will handle YouTube/Vimeo/WebView sources
+  const videoPlayer = useVideoPlayer(videoPlayerSource, (player) => {
+    player.loop = false;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -157,40 +151,48 @@ export default function PlayerScreen() {
 
   // Define callback functions first
   const skipForward = useCallback(async (seconds: number = 10) => {
-    if (!mediaRef.current) return;
+    if (!videoPlayer) return;
     try {
-      mediaRef.current.forward10();
+      const currentTime = videoPlayer.currentTime || 0;
+      const duration = videoPlayer.duration || 0;
+      const newPosition = Math.min(currentTime + seconds, duration);
+      videoPlayer.currentTime = newPosition;
     } catch (error) {
       console.error('Error skipping forward:', error);
     }
-  }, []);
+  }, [videoPlayer]);
 
   const skipBackward = useCallback(async (seconds: number = 10) => {
-    if (!mediaRef.current) return;
+    if (!videoPlayer) return;
     try {
-      mediaRef.current.rewind10();
+      const currentTime = videoPlayer.currentTime || 0;
+      const newPosition = Math.max(currentTime - seconds, 0);
+      videoPlayer.currentTime = newPosition;
     } catch (error) {
       console.error('Error skipping backward:', error);
     }
-  }, []);
+  }, [videoPlayer]);
 
   const setVideoVolume = useCallback(async (newVolume: number) => {
-    if (!mediaRef.current) return;
+    if (!videoPlayer) return;
     try {
       const clampedVolume = Math.max(0, Math.min(1, newVolume));
-      mediaRef.current.setVolume(clampedVolume);
+      videoPlayer.volume = clampedVolume;
       setVolume(clampedVolume);
     } catch (error) {
       console.error('Error setting video volume:', error);
     }
-  }, []);
+  }, [videoPlayer]);
 
   const setVideoSpeed = useCallback(async (rate: number) => {
-    // Speed control is not directly exposed in the UniversalMediaPlayer ref for simplicity,
-    // as it's primarily handled by the native player (Expo Video) which is only used for
-    // a subset of media types. We will focus on the required voice commands (play/pause/seek/mute).
-    console.warn('Playback rate control is not implemented for all media types via voice control.');
-  }, []);
+    if (!videoPlayer) return;
+    try {
+      videoPlayer.playbackRate = rate;
+      setPlaybackRate(rate);
+    } catch (error) {
+      console.error('Error setting video speed:', error);
+    }
+  }, [videoPlayer]);
 
   // Initialize permissions and Siri integration
   useEffect(() => {
@@ -299,26 +301,23 @@ export default function PlayerScreen() {
       try {
         const { command } = event.detail || {};
         if (!command) return;
-
-        setVoiceStatus(t('command_received', { command }));
-
-        // Determine media type for logging
-        const mediaType = videoSource ? getMediaType(videoSource.uri) : 'Other';
-        
-        // Log command to Supabase
-        if (voiceControl && voiceControl.logCommand) {
-          voiceControl.logCommand(command, mediaType);
-        }
         
         switch (command) {
           case 'PlayVideoIntent':
-            mediaRef.current?.play();
+            if (videoPlayer && typeof videoPlayer.play === 'function') {
+              videoPlayer.play();
+            }
             break;
           case 'PauseVideoIntent':
-            mediaRef.current?.pause();
+            if (videoPlayer && typeof videoPlayer.pause === 'function') {
+              videoPlayer.pause();
+            }
             break;
           case 'StopVideoIntent':
-            mediaRef.current?.stop();
+            if (videoPlayer && typeof videoPlayer.pause === 'function') {
+              videoPlayer.pause();
+              videoPlayer.currentTime = 0;
+            }
             break;
           case 'NextVideoIntent':
             console.log('Next video command');
@@ -327,35 +326,45 @@ export default function PlayerScreen() {
             console.log('Previous video command');
             break;
           case 'ReplayVideoIntent':
-            mediaRef.current?.seek(0);
-            mediaRef.current?.play();
+            if (videoPlayer) {
+              videoPlayer.currentTime = 0;
+              if (typeof videoPlayer.play === 'function') {
+                videoPlayer.play();
+              }
+            }
             break;
           case 'Forward10Intent':
-            mediaRef.current?.forward10();
+            skipForward(10);
             break;
           case 'Forward20Intent':
-            mediaRef.current?.forward10(); // Voice command only supports 10s skip for now
+            skipForward(20);
             break;
           case 'Forward30Intent':
-            mediaRef.current?.forward10(); // Voice command only supports 10s skip for now
+            skipForward(30);
             break;
           case 'Rewind10Intent':
-            mediaRef.current?.rewind10();
+            skipBackward(10);
             break;
           case 'Rewind20Intent':
-            mediaRef.current?.rewind10(); // Voice command only supports 10s skip for now
+            skipBackward(20);
             break;
           case 'Rewind30Intent':
-            mediaRef.current?.rewind10(); // Voice command only supports 10s skip for now
+            skipBackward(30);
             break;
           case 'VolumeMaxIntent':
             setVideoVolume(1.0);
             break;
           case 'MuteIntent':
-            mediaRef.current?.mute();
+            if (videoPlayer) {
+              videoPlayer.muted = true;
+              setIsMuted(true);
+            }
             break;
           case 'UnmuteIntent':
-            mediaRef.current?.unmute();
+            if (videoPlayer) {
+              videoPlayer.muted = false;
+              setIsMuted(false);
+            }
             break;
           case 'VolumeUpIntent':
             setVideoVolume(Math.min(1.0, volume + 0.2));
@@ -370,24 +379,19 @@ export default function PlayerScreen() {
             setIsFullscreen(false);
             break;
           case 'SpeedHalfIntent':
-            // Speed control is not fully supported for all media types via ref
-            console.warn('Speed control via voice is not fully supported for all media types.');
+            setVideoSpeed(0.5);
             break;
           case 'SpeedNormalIntent':
-            // Speed control is not fully supported for all media types via ref
-            console.warn('Speed control via voice is not fully supported for all media types.');
+            setVideoSpeed(1.0);
             break;
           case 'Speed125Intent':
-            // Speed control is not fully supported for all media types via ref
-            console.warn('Speed control via voice is not fully supported for all media types.');
+            setVideoSpeed(1.25);
             break;
           case 'Speed150Intent':
-            // Speed control is not fully supported for all media types via ref
-            console.warn('Speed control via voice is not fully supported for all media types.');
+            setVideoSpeed(1.5);
             break;
           case 'Speed200Intent':
-            // Speed control is not fully supported for all media types via ref
-            console.warn('Speed control via voice is not fully supported for all media types.');
+            setVideoSpeed(2.0);
             break;
           default:
             console.log('Unknown command:', command);
@@ -410,27 +414,42 @@ export default function PlayerScreen() {
     }
   }, [videoPlayer, volume, skipForward, skipBackward, setVideoVolume, setVideoSpeed, t]);
 
-  // Update video player state (Simplified, as UniversalMediaPlayer handles most state internally)
+  // Update video player state
   useEffect(() => {
-    // We rely on UniversalMediaPlayer's internal state updates for isPlaying, isMuted, etc.
-    // The player screen's state is now primarily for UI display and external control.
-    // We will keep the interval for duration/position updates if we can get them from the ref,
-    // but since the ref only exposes control methods, we will remove the interval for now
-    // and rely on the player component to manage its own state and potentially expose
-    // status updates via props/callbacks if needed later.
-    // For now, we will only keep the state that is directly controlled by the voice commands.
-    // The player component is responsible for updating the isPlaying/isMuted state on its own.
-    // We will keep the state variables but remove the interval that was polling the old videoPlayer.
-    // The duration/position is not strictly needed for the voice control task.
-  }, []);
+    if (videoPlayer) {
+      const updateStatus = () => {
+        try {
+          setIsPlaying(videoPlayer.playing || false);
+          setDuration((videoPlayer.duration || 0) * 1000);
+          setPosition((videoPlayer.currentTime || 0) * 1000);
+          setIsMuted(videoPlayer.muted || false);
+          setVolume(videoPlayer.volume || 1.0);
+          setPlaybackRate(videoPlayer.playbackRate || 1.0);
+        } catch (error) {
+          console.error('Error updating video status:', error);
+        }
+      };
+      
+      const interval = setInterval(updateStatus, 100);
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    }
+  }, [videoPlayer]);
 
   const togglePlayPause = async () => {
-    if (!mediaRef.current) return;
+    if (!videoPlayer) return;
     try {
       if (isPlaying) {
-        mediaRef.current.pause();
+        if (videoPlayer.pause && typeof videoPlayer.pause === 'function') {
+          videoPlayer.pause();
+        }
       } else {
-        mediaRef.current.play();
+        if (videoPlayer.play && typeof videoPlayer.play === 'function') {
+          videoPlayer.play();
+        }
       }
     } catch (error) {
       console.error('Error toggling play/pause:', error);
@@ -438,12 +457,11 @@ export default function PlayerScreen() {
   };
 
   const toggleMute = async () => {
-    if (!mediaRef.current) return;
+    if (!videoPlayer) return;
     try {
-      if (isMuted) {
-        mediaRef.current.unmute();
-      } else {
-        mediaRef.current.mute();
+      if (typeof videoPlayer.muted !== 'undefined') {
+        videoPlayer.muted = !isMuted;
+        setIsMuted(!isMuted);
       }
     } catch (error) {
       console.error('Error toggling mute:', error);
@@ -1020,25 +1038,24 @@ export default function PlayerScreen() {
     <View style={styles.container}>
       {videoSource && videoSource.uri && videoSource.uri.trim() !== '' ? (
         <View style={styles.videoContainer}>
-          <UniversalMediaPlayer
-            ref={mediaRef}
+          <UniversalVideoPlayer
             url={videoSource.uri}
             onError={(error) => {
-              console.error('[PlayerScreen] UniversalMediaPlayer error:', error);
+              console.error('[PlayerScreen] UniversalVideoPlayer error:', error);
               setVoiceStatus(t('video_load_error'));
               setTimeout(() => setVoiceStatus(''), 3000);
             }}
             onPlaybackStart={() => {
-              console.log('[PlayerScreen] Media playback started');
+              console.log('[PlayerScreen] Video playback started');
               setIsPlaying(true);
             }}
             onPlaybackEnd={() => {
-              console.log('[PlayerScreen] Media playback ended');
+              console.log('[PlayerScreen] Video playback ended');
               setIsPlaying(false);
             }}
             onBackPress={() => {
-              // Clear media source to return to main Voice Control screen
-              console.log('[PlayerScreen] Back button pressed, clearing media');
+              // Clear video source to return to main Voice Control screen
+              console.log('[PlayerScreen] Back button pressed, clearing video');
               setVideoSource(null);
               setIsContentLoaded(false);
             }}

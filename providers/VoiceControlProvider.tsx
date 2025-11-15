@@ -230,34 +230,6 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
     }
   }, []);
 
-  const logCommand = useCallback(async (command: string, media_type: 'DASH' | 'MP3' | 'HLS' | 'MP4' | 'Video' | 'Other') => {
-    try {
-      if (Platform.OS === 'web') {
-        // Only log on web for now, as native logging requires a different setup (e.g., Supabase client in native code)
-        // This is a placeholder for the actual Supabase Edge Function call
-        const response = await fetch('/functions/trackCommand', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            command,
-            user_id: 'anonymous', // Replace with actual user ID from context if available
-            media_type,
-          }),
-        });
-
-        if (!response.ok) {
-          console.error('Failed to log command to Supabase Edge Function:', response.status, await response.text());
-        } else {
-          console.log('Command logged successfully:', command, media_type);
-        }
-      }
-    } catch (error) {
-      console.error('Error logging command to Supabase:', error);
-    }
-  }, []);
-
   const executeCommand = useCallback(async (command: VoiceCommand) => {
     try {
       if (!command) return;
@@ -269,7 +241,6 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         await saveSettings({ usageCount: newCount });
       }
 
-      // 1. Dispatch event for client-side execution
       const event = new CustomEvent('voiceCommand', {
         detail: {
           intent: command.intent,
@@ -280,10 +251,6 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
       if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
         window.dispatchEvent(event);
       }
-
-      // 2. The player component (player.tsx) will listen to 'voiceCommand' and call logCommand
-      // with the correct media_type.
-      console.log('Command executed, ready for logging:', command.intent);
     } catch (error) {
       console.error('Failed to execute voice command:', error);
     }
@@ -718,9 +685,8 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
 
   return useMemo(() => ({
     ...state,
-    logCommand, // 新增 logCommand
     startListening: typeof startListening === 'function' ? startListening : () => Promise.resolve(),
     stopListening: typeof stopListening === 'function' ? stopListening : () => Promise.resolve(),
     toggleAlwaysListening: typeof toggleAlwaysListening === 'function' ? toggleAlwaysListening : () => Promise.resolve(),
-  }), [state, logCommand, startListening, stopListening, toggleAlwaysListening]);
+  }), [state, startListening, stopListening, toggleAlwaysListening]);
 });
