@@ -404,13 +404,13 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
   const stopListeningRef = useRef<(() => Promise<void>) | null>(null);
 
   const startWebRecording = useCallback(async () => {
+    let stream: MediaStream | null = null;
     try {
       if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         console.warn('Media devices not available');
         return;
       }
       
-      let stream: MediaStream | null = null;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch (e: any) {
@@ -431,6 +431,7 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         return;
       }
       
+      const currentStream = stream;
       mediaRecorder.current = new MediaRecorder(stream as MediaStream);
       audioChunks.current = [];
 
@@ -449,7 +450,9 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
           setState(prev => ({ ...prev, isProcessing: false }));
         }
         
-        stream.getTracks().forEach(track => track.stop());
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
         
         if (state.alwaysListening && startListeningRef.current) {
           setTimeout(() => {
@@ -471,6 +474,9 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
     } catch (error) {
       console.error('Failed to start web recording:', error);
       setState(prev => ({ ...prev, isListening: false }));
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
     }
   }, [state.alwaysListening, transcribeAudio]);
 
