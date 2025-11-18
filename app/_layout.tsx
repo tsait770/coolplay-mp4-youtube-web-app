@@ -20,6 +20,7 @@ import { StorageProvider, useStorage } from "@/providers/StorageProvider";
 import ReferralCodeModal from "@/components/ReferralCodeModal";
 import Colors from "@/constants/colors";
 import VoiceOnboardingModal from "@/components/VoiceOnboardingModal";
+import FirstTimeConsentModal from "@/components/FirstTimeConsentModal";
 import { SoundProvider } from "@/providers/SoundProvider";
 import { MembershipProvider } from "@/providers/MembershipProvider";
 import { RatingProvider } from "@/providers/RatingProvider";
@@ -116,6 +117,7 @@ function RootLayoutNav() {
   const [showReferralModal, setShowReferralModal] = useState<boolean>(false);
   const [hasCheckedFirstTime, setHasCheckedFirstTime] = useState<boolean>(false);
   const [showVoiceOnboarding, setShowVoiceOnboarding] = useState<boolean>(false);
+  const [showConsentModal, setShowConsentModal] = useState<boolean>(false);
 
   console.log('[RootLayoutNav] Rendering, storage:', typeof storage, 'userData:', typeof userData);
 
@@ -127,6 +129,14 @@ function RootLayoutNav() {
     const checkFirstTimeUser = async () => {
       try {
         console.log('[RootLayoutNav] Checking first time user...');
+        
+        const hasAcceptedConsent = await storage.getItem('@UserConsent:v1');
+        if (!hasAcceptedConsent && mounted) {
+          setShowConsentModal(true);
+          setHasCheckedFirstTime(true);
+          return;
+        }
+
         const hasSeenModal = await storage.getItem('hasSeenReferralModal');
         const isFirstTime = !hasSeenModal && !userData.hasUsedReferralCode;
         console.log('[RootLayoutNav] hasSeenModal:', hasSeenModal, 'isFirstTime:', isFirstTime);
@@ -226,6 +236,45 @@ function RootLayoutNav() {
     }
   }, [siri, handleCompleteVoiceOnboarding]);
 
+  const handleAcceptConsent = useCallback(async () => {
+    try {
+      const consentData = {
+        version: '1.0.0',
+        timestamp: Date.now(),
+        accepted: true,
+      };
+      await storage.setItem('@UserConsent:v1', JSON.stringify(consentData));
+      console.log('[RootLayoutNav] User consent saved:', consentData);
+      setShowConsentModal(false);
+    } catch (error) {
+      console.error('[RootLayoutNav] Error saving consent:', error);
+    }
+  }, [storage]);
+
+  const handleDeclineConsent = useCallback(() => {
+    Alert.alert(
+      'Privacy Policy Required',
+      'You must accept the privacy policy to use this app.',
+      [
+        {
+          text: 'Exit App',
+          onPress: () => {
+            if (Platform.OS !== 'web') {
+              // On mobile, we can't really close the app, just show the modal again
+              setShowConsentModal(true);
+            }
+          },
+          style: 'destructive' as const,
+        },
+        {
+          text: 'Review Again',
+          onPress: () => setShowConsentModal(true),
+        },
+      ]
+    );
+    setShowConsentModal(false);
+  }, []);
+
   return (
     <>
       <Stack screenOptions={{ headerBackTitle: "Back" }}>
@@ -235,14 +284,21 @@ function RootLayoutNav() {
         <Stack.Screen name="subscription/index" options={{ headerShown: false }} />
         <Stack.Screen name="debug-screen" options={{ headerShown: true, title: "Debug" }} />
       </Stack>
-      {hasCheckedFirstTime && showReferralModal && (
+      {hasCheckedFirstTime && showConsentModal && (
+        <FirstTimeConsentModal
+          visible={showConsentModal}
+          onAccept={handleAcceptConsent}
+          onDecline={handleDeclineConsent}
+        />
+      )}
+      {hasCheckedFirstTime && showReferralModal && !showConsentModal && (
         <ReferralCodeModal
           visible={showReferralModal}
           onClose={handleModalClose}
           isFirstTime={true}
         />
       )}
-      {hasCheckedFirstTime && showVoiceOnboarding && (
+      {hasCheckedFirstTime && showVoiceOnboarding && !showConsentModal && (
         <VoiceOnboardingModal
           visible={showVoiceOnboarding}
           onClose={handleCompleteVoiceOnboarding}
