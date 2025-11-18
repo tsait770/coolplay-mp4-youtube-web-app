@@ -6,12 +6,10 @@ import {
   ScrollView,
   Switch,
   Alert,
-  TouchableOpacity,
 } from "react-native";
-import { Zap, AlertTriangle, RotateCcw } from "lucide-react-native";
+import { Zap, AlertTriangle } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useStorage } from "@/providers/StorageProvider";
 
 type ExperimentalFeature = {
   id: string;
@@ -23,7 +21,6 @@ type ExperimentalFeature = {
 
 export default function ExperimentalFeaturesScreen() {
   const { t } = useTranslation();
-  const storage = useStorage();
   const [features, setFeatures] = useState<ExperimentalFeature[]>([
     {
       id: "ai_categorization",
@@ -84,40 +81,6 @@ export default function ExperimentalFeaturesScreen() {
     );
   };
 
-  const handleResetConsent = () => {
-    Alert.alert(
-      t('reset_consent_modal_title'),
-      t('reset_consent_modal_desc'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('reset'),
-          style: 'destructive' as const,
-          onPress: async () => {
-            try {
-              await storage.removeItem('@UserConsent:v1');
-              Alert.alert(
-                t('success'),
-                t('consent_reset_success'),
-                [
-                  {
-                    text: t('ok'),
-                    onPress: () => {
-                      // User will see the consent modal on next app start
-                    },
-                  },
-                ]
-              );
-            } catch (error) {
-              console.error('Error resetting consent:', error);
-              Alert.alert(t('error'), t('consent_reset_error'));
-            }
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -164,29 +127,6 @@ export default function ExperimentalFeaturesScreen() {
               </View>
             </View>
           ))}
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('developer_tools')}</Text>
-          <TouchableOpacity
-            style={styles.resetButton}
-            onPress={handleResetConsent}
-            activeOpacity={0.7}
-          >
-            <View style={styles.resetButtonLeft}>
-              <View style={styles.resetIconContainer}>
-                <RotateCcw size={20} color={Colors.primary.accent} />
-              </View>
-              <View style={styles.resetTextContainer}>
-                <Text style={styles.resetButtonLabel}>
-                  {t('reset_consent_modal')}
-                </Text>
-                <Text style={styles.resetButtonDesc}>
-                  {t('reset_consent_modal_button_desc')}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.infoSection}>
@@ -292,39 +232,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primary.textSecondary,
     lineHeight: 20,
-  },
-  resetButton: {
-    backgroundColor: Colors.secondary.bg,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.card.border,
-  },
-  resetButtonLeft: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 12,
-  },
-  resetIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: `${Colors.primary.accent}15`,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  resetTextContainer: {
-    flex: 1,
-  },
-  resetButtonLabel: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.primary.text,
-    marginBottom: 4,
-  },
-  resetButtonDesc: {
-    fontSize: 13,
-    color: Colors.primary.textSecondary,
-    lineHeight: 18,
   },
 });
