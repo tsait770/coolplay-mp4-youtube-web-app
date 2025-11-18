@@ -20,7 +20,6 @@ import { StorageProvider, useStorage } from "@/providers/StorageProvider";
 import ReferralCodeModal from "@/components/ReferralCodeModal";
 import Colors from "@/constants/colors";
 import VoiceOnboardingModal from "@/components/VoiceOnboardingModal";
-import FirstTimeConsentModal, { type ConsentPermissions } from "@/components/FirstTimeConsentModal";
 import { SoundProvider } from "@/providers/SoundProvider";
 import { MembershipProvider } from "@/providers/MembershipProvider";
 import { RatingProvider } from "@/providers/RatingProvider";
@@ -117,7 +116,6 @@ function RootLayoutNav() {
   const [showReferralModal, setShowReferralModal] = useState<boolean>(false);
   const [hasCheckedFirstTime, setHasCheckedFirstTime] = useState<boolean>(false);
   const [showVoiceOnboarding, setShowVoiceOnboarding] = useState<boolean>(false);
-  const [showConsentModal, setShowConsentModal] = useState<boolean>(false);
 
   console.log('[RootLayoutNav] Rendering, storage:', typeof storage, 'userData:', typeof userData);
 
@@ -129,14 +127,6 @@ function RootLayoutNav() {
     const checkFirstTimeUser = async () => {
       try {
         console.log('[RootLayoutNav] Checking first time user...');
-        
-        const hasAcceptedConsent = await storage.getItem('hasAcceptedConsent');
-        if (hasAcceptedConsent !== 'true' && mounted) {
-          setShowConsentModal(true);
-          setHasCheckedFirstTime(true);
-          return;
-        }
-        
         const hasSeenModal = await storage.getItem('hasSeenReferralModal');
         const isFirstTime = !hasSeenModal && !userData.hasUsedReferralCode;
         console.log('[RootLayoutNav] hasSeenModal:', hasSeenModal, 'isFirstTime:', isFirstTime);
@@ -258,36 +248,6 @@ function RootLayoutNav() {
           onClose={handleCompleteVoiceOnboarding}
           onEnableInApp={handleEnableInAppVoice}
           onEnableSiri={handleEnableSiri}
-        />
-      )}
-      {showConsentModal && (
-        <FirstTimeConsentModal
-          visible={showConsentModal}
-          onAccept={async (permissions: ConsentPermissions) => {
-            try {
-              await storage.setItem('hasAcceptedConsent', 'true');
-              await storage.setItem('consentPermissions', JSON.stringify(permissions));
-              console.log('[RootLayoutNav] User accepted consent with permissions:', permissions);
-              setShowConsentModal(false);
-              
-              const hasSeenModal = await storage.getItem('hasSeenReferralModal');
-              if (!hasSeenModal && !userData.hasUsedReferralCode) {
-                setTimeout(() => {
-                  setShowReferralModal(true);
-                }, 500);
-              }
-            } catch (error) {
-              console.error('[RootLayoutNav] Error saving consent:', error);
-            }
-          }}
-          onDecline={() => {
-            console.log('[RootLayoutNav] User declined consent');
-            Alert.alert(
-              'Permission Required',
-              'This app requires certain permissions to function properly. Please accept the terms to continue.',
-              [{ text: 'OK', onPress: () => {} }]
-            );
-          }}
         />
       )}
     </>

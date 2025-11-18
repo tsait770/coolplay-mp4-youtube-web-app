@@ -6,12 +6,10 @@ import {
   ScrollView,
   Switch,
   Alert,
-  Pressable,
 } from "react-native";
-import { Zap, AlertTriangle, RotateCcw } from "lucide-react-native";
+import { Zap, AlertTriangle } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useStorage } from "@/providers/StorageProvider";
 
 type ExperimentalFeature = {
   id: string;
@@ -23,7 +21,6 @@ type ExperimentalFeature = {
 
 export default function ExperimentalFeaturesScreen() {
   const { t } = useTranslation();
-  const storage = useStorage();
   const [features, setFeatures] = useState<ExperimentalFeature[]>([
     {
       id: "ai_categorization",
@@ -132,58 +129,6 @@ export default function ExperimentalFeaturesScreen() {
           ))}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {t("testing_utilities") || "Testing Utilities"}
-          </Text>
-          
-          <Pressable
-            style={styles.resetButton}
-            onPress={() => {
-              Alert.alert(
-                t("reset_consent") || "Reset First-Time Consent",
-                t("reset_consent_desc") || "This will reset the first-time consent dialog. You will see it again on next app launch.",
-                [
-                  { text: t("cancel"), style: "cancel" },
-                  {
-                    text: t("reset") || "Reset",
-                    style: "destructive",
-                    onPress: async () => {
-                      try {
-                        await storage.removeItem('hasAcceptedConsent');
-                        await storage.removeItem('consentPermissions');
-                        Alert.alert(
-                          t("success"),
-                          t("consent_reset_success") || "First-time consent has been reset. Please restart the app to see the dialog again."
-                        );
-                      } catch (error) {
-                        console.error('Failed to reset consent:', error);
-                        Alert.alert(
-                          t("error"),
-                          t("consent_reset_error") || "Failed to reset consent. Please try again."
-                        );
-                      }
-                    },
-                  },
-                ]
-              );
-            }}
-            android_ripple={{ color: "rgba(255,90,90,0.15)" }}
-          >
-            <View style={styles.resetButtonContent}>
-              <RotateCcw size={20} color="#FF5A5A" />
-              <View style={styles.resetText}>
-                <Text style={styles.resetLabel}>
-                  {t("reset_consent") || "Reset First-Time Consent"}
-                </Text>
-                <Text style={styles.resetDescription}>
-                  {t("reset_consent_desc") || "Reset the consent dialog for testing"}
-                </Text>
-              </View>
-            </View>
-          </Pressable>
-        </View>
-
         <View style={styles.infoSection}>
           <Text style={styles.infoTitle}>{t("about_experimental_features")}</Text>
           <Text style={styles.infoText}>
@@ -287,31 +232,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primary.textSecondary,
     lineHeight: 20,
-  },
-  resetButton: {
-    backgroundColor: Colors.secondary.bg,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#FF5A5A40",
-  },
-  resetButtonContent: {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 12,
-  },
-  resetText: {
-    flex: 1,
-  },
-  resetLabel: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: "#FF5A5A",
-    marginBottom: 4,
-  },
-  resetDescription: {
-    fontSize: 13,
-    color: Colors.primary.textSecondary,
-    lineHeight: 18,
   },
 });

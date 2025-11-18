@@ -642,18 +642,5 @@
   "all_formats_including_adult": "所有格式包括成人內容",
   "basic_member_description": "定期用戶的最佳價值",
   "premium_member_description": "為高級用戶和專業人士",
-  "upgrade_unlock_features": "升級以解鎖更多功能",
-  "welcome_to_coolplay": "歡迎使用 CoolPlay",
-  "first_time_consent_intro": "開始使用前，我們需要您的許可以提供最佳體驗",
-  "required_permissions": "必要權限",
-  "microphone_permission": "麥克風權限",
-  "microphone_consent_desc": "用於語音控制功能，不會上傳您的語音資料",
-  "storage_permission": "儲存權限",
-  "storage_consent_desc": "用於儲存您的書籤和偏好設定",
-  "optional_permissions": "選用權限",
-  "analytics_permission": "分析資料",
-  "analytics_consent_desc": "幫助我們改善應用程式體驗",
-  "consent_privacy_notice": "您的隱私對我們很重要。我們不會收集、儲存或分享您的個人資料。所有語音處理都在本地進行。",
-  "accept_and_continue": "接受並繼續",
-  "decline": "拒絕"
+  "upgrade_unlock_features": "升級以解鎖更多功能"
 }
