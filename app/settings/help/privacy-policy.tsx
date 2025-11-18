@@ -32,6 +32,30 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.bulletPoint}>• {t("account_information")}</Text>
           <Text style={styles.bulletPoint}>• {t("usage_data")}</Text>
           <Text style={styles.bulletPoint}>• {t("device_information")}</Text>
+          <Text style={styles.bulletPoint}>• {t("voice_data")}</Text>
+
+          <Text style={styles.sectionTitle}>{t("voice_data_collection")}</Text>
+          <Text style={styles.highlightBox}>
+            <Text style={styles.highlightTitle}>{t("voice_data_title")}{' \n'}</Text>
+            <Text style={styles.highlightText}>
+              {t("voice_data_desc")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n\n'}• {t("voice_collected_data")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n'}• {t("voice_processing_method")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n'}• {t("voice_storage_duration")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n'}• {t("voice_third_party")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n'}• {t("voice_opt_out")}
+            </Text>
+          </Text>
 
           <Text style={styles.sectionTitle}>{t("how_we_use_information")}</Text>
           <Text style={styles.paragraph}>
@@ -63,6 +87,14 @@ export default function PrivacyPolicyScreen() {
             {t("data_storage_desc")}
           </Text>
 
+          <Text style={styles.sectionTitle}>{t("permissions_required")}</Text>
+          <Text style={styles.paragraph}>
+            {t("permissions_required_desc")}
+          </Text>
+          <Text style={styles.bulletPoint}>• {t("microphone_permission")}: {t("microphone_permission_desc")}</Text>
+          <Text style={styles.bulletPoint}>• {t("storage_permission")}: {t("storage_permission_desc")}</Text>
+          <Text style={styles.bulletPoint}>• {t("internet_permission")}: {t("internet_permission_desc")}</Text>
+
           <Text style={styles.sectionTitle}>{t("your_rights")}</Text>
           <Text style={styles.paragraph}>
             {t("your_rights_desc")}
@@ -70,6 +102,7 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.bulletPoint}>• {t("access_your_data")}</Text>
           <Text style={styles.bulletPoint}>• {t("delete_your_data")}</Text>
           <Text style={styles.bulletPoint}>• {t("opt_out")}</Text>
+          <Text style={styles.bulletPoint}>• {t("revoke_permissions")}</Text>
 
           <Text style={styles.sectionTitle}>{t("contact_us")}</Text>
           <Text style={styles.paragraph}>
