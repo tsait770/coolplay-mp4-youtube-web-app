@@ -1,8 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-
-const localeDir = path.resolve(__dirname, '..', 'l10n');
-const locales = ['en', 'zh-TW', 'zh-CN', 'es', 'pt-BR', 'pt', 'de', 'fr', 'ru', 'ar', 'ja', 'ko'];
+import { LOCALES, TranslationData } from './utils/translationHelpers';
 
 type LocaleReport = {
   locale: string;
@@ -11,15 +9,15 @@ type LocaleReport = {
   extra: string[];
 };
 
-async function loadLocaleFile(locale: string) {
-  const filePath = path.join(localeDir, `${locale}.json`);
+async function loadLocaleFile(locale: string): Promise<TranslationData> {
+  const filePath = path.join(path.resolve(__dirname, '..', 'l10n'), `${locale}.json`);
   const content = await fs.readFile(filePath, 'utf-8');
-  return JSON.parse(content) as Record<string, string>;
+  return JSON.parse(content) as TranslationData;
 }
 
 async function main() {
   console.log('[auditTranslations] Starting audit...');
-  const localeData = await Promise.all(locales.map(async (locale) => ({
+  const localeData = await Promise.all(LOCALES.map(async (locale) => ({
     locale,
     data: await loadLocaleFile(locale),
   })));
@@ -61,6 +59,12 @@ async function main() {
 
   console.log('[auditTranslations] Summary');
   console.table({ masterKeyCount: masterKeys.length, totalMissing, totalEmpty });
+
+  if (totalMissing === 0 && totalEmpty === 0) {
+    console.log('[auditTranslations] ✅ 所有語言檔案已完成同步，未發現缺失或空值');
+  } else {
+    console.log('[auditTranslations] ⚠️ 仍有缺失或空值需要處理');
+  }
 
   const outputPath = path.resolve(__dirname, '..', 'translation-audit-report.json');
   await fs.writeFile(outputPath, JSON.stringify({ masterKeys, missingByLocale, emptyByLocale, reports }, null, 2));

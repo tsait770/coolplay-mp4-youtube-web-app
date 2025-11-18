@@ -1,56 +1,10 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const localeDir = path.resolve(__dirname, '..', 'l10n');
-const locales = ['en', 'zh-TW', 'zh-CN', 'es', 'pt-BR', 'pt', 'de', 'fr', 'ru', 'ar', 'ja', 'ko'];
-
-type TranslationData = Record<string, string>;
-
-async function loadLocaleFile(locale: string): Promise<TranslationData> {
-  const filePath = path.join(localeDir, `${locale}.json`);
-  const content = await fs.readFile(filePath, 'utf-8');
-  return JSON.parse(content) as TranslationData;
-}
-
-async function saveLocaleFile(locale: string, data: TranslationData): Promise<void> {
-  const filePath = path.join(localeDir, `${locale}.json`);
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2) + '\n', 'utf-8');
-}
-
-function generateEnglishDefault(key: string): string {
-  return key
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-function generateTranslationPlaceholder(key: string, locale: string): string {
-  if (locale === 'en') {
-    return generateEnglishDefault(key);
-  }
-  
-  const localeNames: Record<string, string> = {
-    'zh-TW': '繁體中文',
-    'zh-CN': '简体中文',
-    'es': 'Español',
-    'pt-BR': 'Português (Brasil)',
-    'pt': 'Português',
-    'de': 'Deutsch',
-    'fr': 'Français',
-    'ru': 'Русский',
-    'ar': 'العربية',
-    'ja': '日本語',
-    'ko': '한국어',
-  };
-  
-  return `[${localeNames[locale] || locale}] ${generateEnglishDefault(key)}`;
-}
+import { LOCALES, TranslationData, buildLocalePlaceholder, loadLocaleFile, saveLocaleFile } from './utils/translationHelpers';
 
 async function main() {
   console.log('🔍 開始檢測缺漏的翻譯 key...\n');
   
   const localeData = await Promise.all(
-    locales.map(async (locale) => ({
+    LOCALES.map(async (locale) => ({
       locale,
       data: await loadLocaleFile(locale),
     }))
@@ -83,13 +37,13 @@ async function main() {
     const updatedData: TranslationData = { ...data };
 
     for (const key of missingKeys) {
-      updatedData[key] = generateTranslationPlaceholder(key, locale);
+      updatedData[key] = buildLocalePlaceholder(locale, key);
       added++;
     }
 
     for (const key of emptyKeys) {
       if (!missingKeys.includes(key)) {
-        updatedData[key] = generateTranslationPlaceholder(key, locale);
+        updatedData[key] = buildLocalePlaceholder(locale, key);
         fixed++;
       }
     }
