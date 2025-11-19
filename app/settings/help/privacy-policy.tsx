@@ -55,7 +55,19 @@ export default function PrivacyPolicyScreen() {
             <Text style={styles.highlightText}>
               {'\n'}• {t("voice_opt_out")}
             </Text>
+            <Text style={styles.highlightText}>
+              {'\n'}• {t("voice_not_for_training")}
+            </Text>
           </Text>
+
+          <Text style={styles.sectionTitle}>{t("usage_scenarios")}</Text>
+          <Text style={styles.paragraph}>
+            {t("usage_scenarios_desc")}
+          </Text>
+          <Text style={styles.bulletPoint}>• {t("usage_login")}</Text>
+          <Text style={styles.bulletPoint}>• {t("usage_subscription")}</Text>
+          <Text style={styles.bulletPoint}>• {t("usage_voice_control")}</Text>
+          <Text style={styles.bulletPoint}>• {t("usage_streaming")}</Text>
 
           <Text style={styles.sectionTitle}>{t("how_we_use_information")}</Text>
           <Text style={styles.paragraph}>
@@ -81,6 +93,25 @@ export default function PrivacyPolicyScreen() {
               {'\n'}• YouTube Terms of Service: https://www.youtube.com/t/terms
             </Text>
           </Text>
+
+          <Text style={styles.sectionTitle}>{t("voice_streaming_platform")}</Text>
+          <Text style={styles.paragraph}>
+            {t("voice_streaming_desc")}
+          </Text>
+          <Text style={styles.bulletPoint}>• {t("no_download_commitment")}</Text>
+          <Text style={styles.bulletPoint}>• {t("no_modification_commitment")}</Text>
+          <Text style={styles.bulletPoint}>• {t("comply_platform_terms")}</Text>
+          <Text style={styles.paragraph}>
+            {t("third_party_data_sharing")}
+          </Text>
+
+          <Text style={styles.sectionTitle}>{t("advertising_directory")}</Text>
+          <Text style={styles.paragraph}>
+            {t("advertising_directory_desc")}
+          </Text>
+          <Text style={styles.bulletPoint}>• {t("ad_id_usage")}</Text>
+          <Text style={styles.bulletPoint}>• {t("personalized_ads")}</Text>
+          <Text style={styles.bulletPoint}>• {t("opt_out_ads")}</Text>
 
           <Text style={styles.sectionTitle}>{t("data_storage")}</Text>
           <Text style={styles.paragraph}>
