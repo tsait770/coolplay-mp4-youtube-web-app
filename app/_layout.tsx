@@ -112,13 +112,15 @@ class ErrorBoundary extends Component<
 
 function RootLayoutNav() {
   const storage = useStorage();
-  const { userData } = useReferral();
+  const referralContext = useReferral();
   const voice = useVoiceControl();
   const siri = useSiriIntegration();
   const [showConsentModal, setShowConsentModal] = useState<boolean>(false);
   const [showReferralModal, setShowReferralModal] = useState<boolean>(false);
   const [hasCheckedFirstTime, setHasCheckedFirstTime] = useState<boolean>(false);
   const [showVoiceOnboarding, setShowVoiceOnboarding] = useState<boolean>(false);
+
+  const userData = referralContext?.userData;
 
   console.log('[RootLayoutNav] Rendering, storage:', typeof storage, 'userData:', typeof userData);
 
@@ -140,10 +142,10 @@ function RootLayoutNav() {
         }
 
         const hasSeenModal = await storage.getItem('hasSeenReferralModal');
-        const isFirstTime = !hasSeenModal && !userData.hasUsedReferralCode;
+        const isFirstTime = !hasSeenModal && userData && !userData.hasUsedReferralCode;
         console.log('[RootLayoutNav] hasSeenModal:', hasSeenModal, 'isFirstTime:', isFirstTime);
 
-        if (isFirstTime && mounted) {
+        if (isFirstTime && mounted && userData) {
           referralTimeoutId = setTimeout(() => {
             if (mounted) {
               setShowReferralModal(true);
@@ -186,7 +188,7 @@ function RootLayoutNav() {
         voiceTimeoutId = null;
       }
     };
-  }, [storage, userData.hasUsedReferralCode]);
+  }, [storage, userData]);
 
   const handleModalClose = async () => {
     setShowReferralModal(false);
@@ -276,6 +278,16 @@ function RootLayoutNav() {
       ]
     );
   }, []);
+
+  if (!userData) {
+    console.log('[RootLayoutNav] userData is undefined, showing loading...');
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary.accent} />
+        <Text style={styles.loadingText}>Initializing...</Text>
+      </View>
+    );
+  }
 
   return (
     <>
