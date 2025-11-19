@@ -11,12 +11,12 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, Eye, EyeOff, Chrome } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '@/providers/AuthProvider';
 import Colors from '@/constants/colors';
 export default function SignInScreen() {
   const router = useRouter();
-  const { signIn, signInWithGoogle, loading } = useAuth();
+  const { signIn, loading } = useAuth();
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -34,17 +34,6 @@ export default function SignInScreen() {
     if (signInError) {
       setError(signInError.message);
     } else {
-      router.replace('/(tabs)/home');
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError('');
-    const { error: signInError, data } = await signInWithGoogle();
-
-    if (signInError) {
-      setError(signInError.message);
-    } else if (data) {
       router.replace('/(tabs)/home');
     }
   };
@@ -131,14 +120,15 @@ export default function SignInScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity
+            {/* Google Sign-In temporarily disabled - Enable Google OAuth in Supabase Dashboard first */}
+            {/* <TouchableOpacity
               style={styles.googleButton}
               onPress={handleGoogleSignIn}
               disabled={loading}
             >
               <Chrome size={20} color="#4285F4" style={styles.googleIcon} />
               <Text style={styles.googleButtonText}>使用 Google 登入</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
               style={styles.secondaryButton}
