@@ -12,7 +12,6 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
-  Image,
   FlatList,
   KeyboardAvoidingView,
   RefreshControl,
@@ -93,7 +92,17 @@ const getCacheDirectory = () => {
 
 export default function HomeScreen() {
   const { t } = useTranslation();
-  const { userData } = useReferral();
+  const referralContext = useReferral();
+  const userData = referralContext?.userData || {
+    voiceCredits: 0,
+    hasUsedReferralCode: false,
+    userId: '',
+    referralCode: '',
+    totalReferrals: 0,
+    activeReferrals: 0,
+    referralRate: 0,
+    referralHistory: [],
+  };
   const { categories, getTotalVisibleFolderCount } = useCategories();
   const { getItem, setItem } = useStorage();
   const { tier, getRemainingUsage } = useMembership();

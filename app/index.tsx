@@ -68,15 +68,14 @@ export default function Index() {
     try {
       console.log('[Index] User accepted consent');
       
-      const consentData = {
+      // Save consent status with simple string values only
+      await AsyncStorage.setItem('user_consent_given', 'true');
+      await AsyncStorage.setItem('user_permissions', JSON.stringify({
         microphone: true,
         storage: true,
-        analytics: true
-      };
-      
-      // Save consent status
-      await AsyncStorage.setItem('user_consent_given', 'true');
-      await AsyncStorage.setItem('user_permissions', JSON.stringify(consentData));
+        analytics: true,
+        timestamp: new Date().toISOString()
+      }));
       
       setShowConsent(false);
       setIsReady(true);
