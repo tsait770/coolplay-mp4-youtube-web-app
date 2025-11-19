@@ -758,5 +758,17 @@
   "imported": "Imported",
   "failed": "Failed",
   "skipped": "Skipped",
-  "management": "Management"
+  "management": "Management",
+  "watch_platform_youtube": "Watch Platform: YouTube",
+  "bitcoin_secure_key": "Bitcoin Secure Key",
+  "wallet_prefix": "Wallet",
+  "wallet_import_action": "Import",
+  "wallet_import_placeholder": "Enter mnemonic, xprv or paste private key",
+  "wallet_add_success": "New wallet added",
+  "wallet_import_success": "Wallet imported successfully",
+  "wallet_import_error_empty": "Please enter mnemonic, xprv or private key",
+  "wallet_delete_confirm": "Are you sure you want to delete this wallet?",
+  "wallet_action_view": "View Wallet",
+  "wallet_action_backup": "Backup Wallet",
+  "wallet_action_delete": "Delete Wallet"
 }
