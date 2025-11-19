@@ -1,8 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://ukpskaspdzinzpsdoodi.supabase.co';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcHNrYXNwZHppbnpwc2Rvb2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NDA0MjgsImV4cCI6MjA3ODUxNjQyOH0.HdmSGe_YEs5hVFTgm7QMzmQu3xe8i95carC8wxSjGfU';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing Supabase environment variables. Please check your .env file and ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set.'
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -33,6 +39,11 @@ export type Database = {
           total_usage_count: number;
           last_reset_date: string;
           max_devices: number;
+          age_verified: boolean;
+          age_verification_date: string | null;
+          date_of_birth: string | null;
+          parental_consent: boolean;
+          parental_email: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -52,6 +63,11 @@ export type Database = {
           total_usage_count?: number;
           last_reset_date?: string;
           max_devices?: number;
+          age_verified?: boolean;
+          age_verification_date?: string | null;
+          date_of_birth?: string | null;
+          parental_consent?: boolean;
+          parental_email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -71,6 +87,11 @@ export type Database = {
           total_usage_count?: number;
           last_reset_date?: string;
           max_devices?: number;
+          age_verified?: boolean;
+          age_verification_date?: string | null;
+          date_of_birth?: string | null;
+          parental_consent?: boolean;
+          parental_email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
