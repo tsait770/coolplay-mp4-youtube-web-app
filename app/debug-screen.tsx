@@ -1,105 +1,119 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
+import Constants from 'expo-constants';
+import { useRouter } from 'expo-router';
+import { RefreshCw, Trash2, ArrowLeft } from 'lucide-react-native';
 
 export default function DebugScreen() {
-  const [logs, setLogs] = useState<string[]>([]);
-  const [storageKeys, setStorageKeys] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const [envVars, setEnvVars] = useState<any>({});
+  const [storageData, setStorageData] = useState<any>({});
 
   useEffect(() => {
-    const checkApp = async () => {
-      const newLogs: string[] = [];
-      
-      try {
-        newLogs.push('[DEBUG] Starting diagnostic...');
-        
-        // Check AsyncStorage
-        try {
-          const keys = await AsyncStorage.getAllKeys();
-          newLogs.push(`[DEBUG] Storage keys count: ${keys.length}`);
-          setStorageKeys([...keys]);
-          
-          // Check for corrupted keys
-          let corruptedCount = 0;
-          for (const key of keys.slice(0, 10)) {
-            try {
-              const value = await AsyncStorage.getItem(key);
-              if (value && typeof value === 'string') {
-                if (value.includes('[object Object]') || value === 'undefined' || value === 'NaN') {
-                  corruptedCount++;
-                  newLogs.push(`[WARN] Corrupted key: ${key}`);
-                }
-              }
-            } catch (e) {
-              newLogs.push(`[ERROR] Failed to read key ${key}: ${e}`);
-            }
-          }
-          newLogs.push(`[DEBUG] Corrupted keys: ${corruptedCount}`);
-        } catch (storageError) {
-          newLogs.push(`[ERROR] AsyncStorage check failed: ${storageError}`);
-        }
-        
-        // Check Colors
-        try {
-          newLogs.push(`[DEBUG] Colors.primary.bg: ${Colors.primary.bg}`);
-          newLogs.push(`[DEBUG] Colors.primary.text: ${Colors.primary.text}`);
-        } catch (colorError) {
-          newLogs.push(`[ERROR] Colors check failed: ${colorError}`);
-        }
-        
-        newLogs.push('[DEBUG] Diagnostic completed');
-        setLogs(newLogs);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        newLogs.push(`[FATAL] Diagnostic failed: ${err}`);
-        setLogs(newLogs);
-      }
-    };
-    
-    checkApp();
+    loadDebugInfo();
   }, []);
 
-  const clearStorage = async () => {
+  const loadDebugInfo = async () => {
+    // Environment variables
+    const env = {
+      EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL || 'Not set',
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ? '✓ Set' : 'Not set',
+      EXPO_PUBLIC_APP_URL: process.env.EXPO_PUBLIC_APP_URL || 'Not set',
+      fromConstants: {
+        url: Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL || 'Not set',
+        key: Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY ? '✓ Set' : 'Not set',
+      }
+    };
+    setEnvVars(env);
+
+    // Storage data
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const data: any = {};
+      for (const key of keys) {
+        const value = await AsyncStorage.getItem(key);
+        data[key] = value ? (value.length > 100 ? value.substring(0, 100) + '...' : value) : 'null';
+      }
+      setStorageData(data);
+    } catch (error) {
+      console.error('Error loading storage:', error);
+    }
+  };
+
+  const clearAllStorage = async () => {
     try {
       await AsyncStorage.clear();
-      setLogs([...logs, '[ACTION] Storage cleared successfully']);
-      setStorageKeys([]);
-    } catch (err) {
-      setLogs([...logs, `[ERROR] Failed to clear storage: ${err}`]);
+      alert('Storage cleared successfully');
+      loadDebugInfo();
+    } catch (error) {
+      alert('Error clearing storage: ' + error);
+    }
+  };
+
+  const clearConsent = async () => {
+    try {
+      await AsyncStorage.removeItem('user_consent_given');
+      await AsyncStorage.removeItem('user_permissions');
+      alert('Consent data cleared. App will show consent modal on next start.');
+      loadDebugInfo();
+    } catch (error) {
+      alert('Error clearing consent: ' + error);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <Text style={styles.title}>Debug Screen</Text>
-      
-      {error && (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <ArrowLeft size={24} color={Colors.primary.text} />
+        </TouchableOpacity>
+        <Text style={styles.title}>Debug Information</Text>
+        <TouchableOpacity onPress={loadDebugInfo} style={styles.refreshButton}>
+          <RefreshCw size={24} color={Colors.primary.accent} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.content}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Environment Variables</Text>
+          {Object.entries(envVars).map(([key, value]: [string, any]) => (
+            <View key={key} style={styles.item}>
+              <Text style={styles.itemKey}>{key}:</Text>
+              <Text style={styles.itemValue}>
+                {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+              </Text>
+            </View>
+          ))}
         </View>
-      )}
-      
-      <TouchableOpacity style={styles.button} onPress={clearStorage}>
-        <Text style={styles.buttonText}>Clear Storage</Text>
-      </TouchableOpacity>
-      
-      <Text style={styles.sectionTitle}>Storage Keys ({storageKeys.length})</Text>
-      <ScrollView style={styles.logContainer}>
-        {storageKeys.map((key, idx) => (
-          <Text key={idx} style={styles.logText}>• {key}</Text>
-        ))}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>AsyncStorage Data</Text>
+          {Object.entries(storageData).map(([key, value]) => (
+            <View key={key} style={styles.item}>
+              <Text style={styles.itemKey}>{key}:</Text>
+              <Text style={styles.itemValue} numberOfLines={3}>{String(value)}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.actionButton} onPress={clearConsent}>
+            <Trash2 size={20} color={Colors.primary.text} />
+            <Text style={styles.actionText}>Clear Consent</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.dangerButton]} 
+            onPress={clearAllStorage}
+          >
+            <Trash2 size={20} color={Colors.primary.text} />
+            <Text style={styles.actionText}>Clear All Storage</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
-      
-      <Text style={styles.sectionTitle}>Logs</Text>
-      <ScrollView style={styles.logContainer}>
-        {logs.map((log, idx) => (
-          <Text key={idx} style={styles.logText}>{log}</Text>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -107,54 +121,75 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.primary.bg,
-    padding: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.card.border,
+  },
+  backButton: {
+    padding: 8,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
+    fontSize: 20,
+    fontWeight: '700',
     color: Colors.primary.text,
-    marginBottom: 20,
   },
-  errorBox: {
-    backgroundColor: Colors.semantic.danger,
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
+  refreshButton: {
+    padding: 8,
   },
-  errorText: {
-    color: Colors.primary.text,
-    fontSize: 14,
+  content: {
+    flex: 1,
+    padding: 16,
   },
-  button: {
-    backgroundColor: Colors.primary.accent,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: 'center' as const,
-  },
-  buttonText: {
-    color: Colors.primary.text,
-    fontSize: 16,
-    fontWeight: '600' as const,
+  section: {
+    marginBottom: 24,
+    backgroundColor: Colors.secondary.bg,
+    borderRadius: 12,
+    padding: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: Colors.primary.text,
-    marginTop: 10,
-    marginBottom: 10,
+    marginBottom: 16,
   },
-  logContainer: {
-    flex: 1,
-    backgroundColor: Colors.secondary.bg,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+  item: {
+    marginBottom: 12,
   },
-  logText: {
-    color: Colors.primary.textSecondary,
+  itemKey: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary.accent,
+    marginBottom: 4,
+  },
+  itemValue: {
     fontSize: 12,
+    color: Colors.primary.textSecondary,
     fontFamily: 'monospace',
-    marginBottom: 5,
+  },
+  actions: {
+    gap: 12,
+    marginBottom: 32,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary.accent,
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  dangerButton: {
+    backgroundColor: '#ef4444',
+  },
+  actionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.primary.text,
   },
 });
