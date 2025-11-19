@@ -26,19 +26,37 @@ export default function FirstTimeConsentModal({
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState<boolean>(false);
 
   const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
-    if (isCloseToBottom && !hasScrolledToBottom) {
-      setHasScrolledToBottom(true);
+    try {
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 20;
+      if (isCloseToBottom && !hasScrolledToBottom) {
+        setHasScrolledToBottom(true);
+      }
+    } catch (error) {
+      console.error('[FirstTimeConsentModal] Scroll handler error:', error);
     }
   };
 
-  const openPrivacyPolicy = () => {
-    Linking.openURL('https://coolplay.com/privacy');
+  const openPrivacyPolicy = async () => {
+    try {
+      const supported = await Linking.canOpenURL('https://coolplay.com/privacy');
+      if (supported) {
+        await Linking.openURL('https://coolplay.com/privacy');
+      }
+    } catch (error) {
+      console.error('[FirstTimeConsentModal] Error opening privacy policy:', error);
+    }
   };
 
-  const openTermsOfService = () => {
-    Linking.openURL('https://coolplay.com/terms');
+  const openTermsOfService = async () => {
+    try {
+      const supported = await Linking.canOpenURL('https://coolplay.com/terms');
+      if (supported) {
+        await Linking.openURL('https://coolplay.com/terms');
+      }
+    } catch (error) {
+      console.error('[FirstTimeConsentModal] Error opening terms of service:', error);
+    }
   };
 
   return (

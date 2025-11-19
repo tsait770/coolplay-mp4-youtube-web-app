@@ -22,10 +22,11 @@ export const saveUserConsent = async (permissions: {
       timestamp: Date.now(),
       ...permissions,
     };
-    await AsyncStorage.setItem(CONSENT_KEY, JSON.stringify(consentData));
-    console.log('[UserConsent] Consent saved:', consentData);
+    const serializedData = JSON.stringify(consentData);
+    await AsyncStorage.setItem(CONSENT_KEY, serializedData);
+    console.log('[UserConsent] Consent saved successfully');
   } catch (error) {
-    console.error('[UserConsent] Error saving consent:', error);
+    console.error('[UserConsent] Error saving consent:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 };
