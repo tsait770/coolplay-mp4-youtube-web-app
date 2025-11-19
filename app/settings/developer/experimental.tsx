@@ -6,8 +6,10 @@ import {
   ScrollView,
   Switch,
   Alert,
+  TouchableOpacity,
 } from "react-native";
-import { Zap, AlertTriangle } from "lucide-react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Zap, AlertTriangle, RotateCcw } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -81,6 +83,36 @@ export default function ExperimentalFeaturesScreen() {
     );
   };
 
+  const handleResetConsent = () => {
+    Alert.alert(
+      t("reset_first_time_consent"),
+      t("reset_consent_warning"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("reset"),
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('first_time_consent_shown');
+              await AsyncStorage.removeItem('consent_permissions');
+              Alert.alert(
+                t("success"),
+                t("consent_reset_success")
+              );
+            } catch (error) {
+              console.error('Failed to reset consent:', error);
+              Alert.alert(
+                t("error"),
+                t("consent_reset_failed")
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -127,6 +159,28 @@ export default function ExperimentalFeaturesScreen() {
               </View>
             </View>
           ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {t("developer_tools")}
+          </Text>
+          <TouchableOpacity 
+            style={styles.resetButton}
+            onPress={handleResetConsent}
+          >
+            <View style={styles.resetButtonContent}>
+              <RotateCcw size={20} color={Colors.primary.accent} />
+              <View style={styles.resetButtonText}>
+                <Text style={styles.resetButtonLabel}>
+                  {t("reset_first_time_consent")}
+                </Text>
+                <Text style={styles.resetButtonDescription}>
+                  {t("reset_consent_description")}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.infoSection}>
@@ -232,5 +286,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primary.textSecondary,
     lineHeight: 20,
+  },
+  resetButton: {
+    backgroundColor: Colors.secondary.bg,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.card.border,
+  },
+  resetButtonContent: {
+    flexDirection: "row" as const,
+    alignItems: "flex-start" as const,
+    gap: 12,
+  },
+  resetButtonText: {
+    flex: 1,
+  },
+  resetButtonLabel: {
+    fontSize: 16,
+    fontWeight: "600" as const,
+    color: Colors.primary.text,
+    marginBottom: 4,
+  },
+  resetButtonDescription: {
+    fontSize: 13,
+    color: Colors.primary.textSecondary,
+    lineHeight: 18,
   },
 });
