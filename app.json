@@ -38,7 +38,9 @@
         "INTERNET",
         "android.permission.VIBRATE",
         "android.permission.REQUEST_INSTALL_PACKAGES",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ],
       "manifest": {
         "android:supportsPictureInPicture": true
@@ -79,6 +81,18 @@
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
           "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./local/assets/notification_icon.png",
+          "color": "#ffffff",
+          "defaultChannel": "default",
+          "sounds": [
+            "./local/assets/notification_sound.wav"
+          ],
+          "enableBackgroundRemoteNotifications": false
         }
       ]
     ],

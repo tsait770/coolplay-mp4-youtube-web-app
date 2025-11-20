@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
-import { Mic, ChevronRight } from "lucide-react-native";
+import { Mic, ChevronRight, Radio } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -19,6 +19,11 @@ export default function VoiceIndexScreen() {
       icon: Mic,
       label: t("siri_voice_assistant"),
       route: "/settings/voice/assistant",
+    },
+    {
+      icon: Radio,
+      label: "Background Listening",
+      route: "/settings/voice/background",
     },
   ];
 
