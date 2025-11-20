@@ -1,110 +1,189 @@
-import { Platform, AppState, AppStateStatus } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+import { Audio } from 'expo-av';
 
 export interface BackgroundListeningConfig {
   enableKeepAlive: boolean;
   keepAliveInterval: number;
-  enableForegroundService: boolean;
-  enableBackgroundAudio: boolean;
-  enableWakeWord: boolean;
-  wakeWords: string[];
+  autoRestart: boolean;
+  maxRestartAttempts: number;
+  restartDelay: number;
+}
+
+export type ListeningMode = 'oneshot' | 'continuous' | 'wake-word';
+
+export interface BackgroundListeningState {
+  isActive: boolean;
+  mode: ListeningMode;
+  restartAttempts: number;
+  lastError: string | null;
+  lastRestartTime: number | null;
 }
 
 export class BackgroundListeningManager {
+  private static instance: BackgroundListeningManager;
   private config: BackgroundListeningConfig;
+  private state: BackgroundListeningState;
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
-  private appStateSubscription: any = null;
+  private restartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private listeners: Set<(state: BackgroundListeningState) => void> = new Set();
+  private checkCallback: (() => boolean) | null = null;
   private restartCallback: (() => Promise<void>) | null = null;
-  private isActiveCallback: (() => boolean) | null = null;
 
-  constructor(config: Partial<BackgroundListeningConfig> = {}) {
+  private constructor() {
     this.config = {
-      enableKeepAlive: config.enableKeepAlive ?? true,
-      keepAliveInterval: config.keepAliveInterval ?? 5000,
-      enableForegroundService: config.enableForegroundService ?? Platform.OS === 'android',
-      enableBackgroundAudio: config.enableBackgroundAudio ?? Platform.OS === 'ios',
-      enableWakeWord: config.enableWakeWord ?? false,
-      wakeWords: config.wakeWords ?? ['hey coolplay', 'ok coolplay'],
+      enableKeepAlive: true,
+      keepAliveInterval: 5000,
+      autoRestart: true,
+      maxRestartAttempts: 5,
+      restartDelay: 1000,
+    };
+
+    this.state = {
+      isActive: false,
+      mode: 'oneshot',
+      restartAttempts: 0,
+      lastError: null,
+      lastRestartTime: null,
     };
   }
 
-  async start(
-    restartCallback: () => Promise<void>,
-    isActiveCallback: () => boolean
-  ): Promise<void> {
-    console.log('[BackgroundListeningManager] Starting background listening...');
-    
-    this.restartCallback = restartCallback;
-    this.isActiveCallback = isActiveCallback;
+  static getInstance(): BackgroundListeningManager {
+    if (!BackgroundListeningManager.instance) {
+      BackgroundListeningManager.instance = new BackgroundListeningManager();
+    }
+    return BackgroundListeningManager.instance;
+  }
 
+  updateConfig(config: Partial<BackgroundListeningConfig>): void {
+    this.config = { ...this.config, ...config };
+    console.log('[BackgroundListening] Config updated:', this.config);
+  }
+
+  getConfig(): BackgroundListeningConfig {
+    return { ...this.config };
+  }
+
+  getState(): BackgroundListeningState {
+    return { ...this.state };
+  }
+
+  subscribe(listener: (state: BackgroundListeningState) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyListeners(): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(this.getState());
+      } catch (error) {
+        console.error('[BackgroundListening] Error in listener:', error);
+      }
+    });
+  }
+
+  private updateState(updates: Partial<BackgroundListeningState>): void {
+    this.state = { ...this.state, ...updates };
+    this.notifyListeners();
+  }
+
+  async enableBackgroundAudio(): Promise<void> {
     if (Platform.OS === 'ios') {
-      await this.setupIOSBackgroundListening();
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+        });
+        console.log('[BackgroundListening] iOS background audio enabled');
+      } catch (error) {
+        console.error('[BackgroundListening] Failed to enable iOS background audio:', error);
+        throw error;
+      }
     } else if (Platform.OS === 'android') {
-      await this.setupAndroidBackgroundListening();
-    } else {
-      await this.setupWebBackgroundListening();
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: false,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+        console.log('[BackgroundListening] Android background audio enabled');
+      } catch (error) {
+        console.error('[BackgroundListening] Failed to enable Android background audio:', error);
+        throw error;
+      }
+    }
+  }
+
+  async disableBackgroundAudio(): Promise<void> {
+    if (Platform.OS !== 'web') {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false,
+        });
+        console.log('[BackgroundListening] Background audio disabled');
+      } catch (error) {
+        console.error('[BackgroundListening] Failed to disable background audio:', error);
+      }
+    }
+  }
+
+  setHealthCheckCallback(callback: () => boolean): void {
+    this.checkCallback = callback;
+  }
+
+  setRestartCallback(callback: () => Promise<void>): void {
+    this.restartCallback = callback;
+  }
+
+  async start(mode: ListeningMode = 'continuous'): Promise<void> {
+    console.log(`[BackgroundListening] Starting in ${mode} mode`);
+
+    if (Platform.OS !== 'web') {
+      await this.enableBackgroundAudio();
     }
 
-    if (this.config.enableKeepAlive) {
+    this.updateState({
+      isActive: true,
+      mode,
+      restartAttempts: 0,
+      lastError: null,
+    });
+
+    if (mode === 'continuous' && this.config.enableKeepAlive) {
       this.startKeepAlive();
     }
-
-    this.setupAppStateListener();
   }
 
   async stop(): Promise<void> {
-    console.log('[BackgroundListeningManager] Stopping background listening...');
-    
-    if (this.keepAliveTimer) {
-      clearInterval(this.keepAliveTimer);
-      this.keepAliveTimer = null;
+    console.log('[BackgroundListening] Stopping');
+
+    this.stopKeepAlive();
+
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout);
+      this.restartTimeout = null;
     }
 
-    if (this.appStateSubscription) {
-      this.appStateSubscription.remove();
-      this.appStateSubscription = null;
+    if (Platform.OS !== 'web') {
+      await this.disableBackgroundAudio();
     }
 
-    if (Platform.OS === 'android' && this.config.enableForegroundService) {
-      await this.stopForegroundService();
-    }
-  }
-
-  private async setupIOSBackgroundListening(): Promise<void> {
-    console.log('[BackgroundListeningManager] Setting up iOS background listening');
-    
-    if (this.config.enableBackgroundAudio) {
-      console.log('[BackgroundListeningManager] iOS: Background audio mode required');
-      console.log('[BackgroundListeningManager] iOS: Please ensure UIBackgroundModes includes "audio" in app.json');
-    }
-
-    console.log('[BackgroundListeningManager] iOS: Using keep-alive mechanism for ASR restart');
-  }
-
-  private async setupAndroidBackgroundListening(): Promise<void> {
-    console.log('[BackgroundListeningManager] Setting up Android background listening');
-    
-    if (this.config.enableForegroundService) {
-      await this.startForegroundService();
-    }
-
-    console.log('[BackgroundListeningManager] Android: Foreground service active');
-  }
-
-  private async setupWebBackgroundListening(): Promise<void> {
-    console.log('[BackgroundListeningManager] Setting up Web background listening');
-    console.log('[BackgroundListeningManager] Web: Active tab required for continuous listening');
-    
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          console.log('[BackgroundListeningManager] Tab hidden - ASR may stop');
-        } else {
-          console.log('[BackgroundListeningManager] Tab visible - checking ASR status');
-          this.checkAndRestart();
-        }
-      });
-    }
+    this.updateState({
+      isActive: false,
+      restartAttempts: 0,
+      lastError: null,
+    });
   }
 
   private startKeepAlive(): void {
@@ -112,137 +191,101 @@ export class BackgroundListeningManager {
       clearInterval(this.keepAliveTimer);
     }
 
-    console.log(
-      `[BackgroundListeningManager] Starting keep-alive (interval: ${this.config.keepAliveInterval}ms)`
-    );
+    console.log(`[BackgroundListening] Starting keep-alive (interval: ${this.config.keepAliveInterval}ms)`);
 
     this.keepAliveTimer = setInterval(() => {
-      this.checkAndRestart();
+      this.performHealthCheck();
     }, this.config.keepAliveInterval);
   }
 
-  private async checkAndRestart(): Promise<void> {
-    if (!this.isActiveCallback || !this.restartCallback) {
-      return;
-    }
-
-    const isActive = this.isActiveCallback();
-    
-    if (!isActive) {
-      console.log('[BackgroundListeningManager] Keep-alive: ASR inactive, restarting...');
-      
-      try {
-        await this.restartCallback();
-        console.log('[BackgroundListeningManager] Keep-alive: ASR restarted successfully');
-      } catch (error) {
-        console.error('[BackgroundListeningManager] Keep-alive: Failed to restart ASR:', error);
-      }
+  private stopKeepAlive(): void {
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+      console.log('[BackgroundListening] Keep-alive stopped');
     }
   }
 
-  private setupAppStateListener(): void {
-    this.appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      console.log('[BackgroundListeningManager] App state changed:', nextAppState);
-      
-      if (nextAppState === 'active') {
-        console.log('[BackgroundListeningManager] App resumed - checking ASR status');
-        this.checkAndRestart();
-      } else if (nextAppState === 'background') {
-        console.log('[BackgroundListeningManager] App backgrounded');
-        
-        if (Platform.OS === 'android' && this.config.enableForegroundService) {
-          console.log('[BackgroundListeningManager] Android: Foreground service should keep ASR alive');
-        } else if (Platform.OS === 'ios' && this.config.enableBackgroundAudio) {
-          console.log('[BackgroundListeningManager] iOS: Background audio mode should maintain session');
-        } else {
-          console.log('[BackgroundListeningManager] ASR may be suspended by system');
-        }
-      }
+  private performHealthCheck(): void {
+    if (!this.checkCallback) {
+      console.warn('[BackgroundListening] No health check callback set');
+      return;
+    }
+
+    const isHealthy = this.checkCallback();
+
+    if (!isHealthy && this.config.autoRestart) {
+      console.log('[BackgroundListening] Health check failed, attempting restart');
+      this.attemptRestart();
+    } else if (isHealthy && this.state.restartAttempts > 0) {
+      this.updateState({ restartAttempts: 0 });
+    }
+  }
+
+  private attemptRestart(): void {
+    if (this.state.restartAttempts >= this.config.maxRestartAttempts) {
+      console.error('[BackgroundListening] Max restart attempts reached, giving up');
+      this.updateState({
+        lastError: 'Max restart attempts exceeded',
+      });
+      this.stop();
+      return;
+    }
+
+    if (this.restartTimeout) {
+      return;
+    }
+
+    const attempt = this.state.restartAttempts + 1;
+    console.log(`[BackgroundListening] Scheduling restart attempt ${attempt}/${this.config.maxRestartAttempts}`);
+
+    this.updateState({
+      restartAttempts: attempt,
     });
-  }
 
-  private async startForegroundService(): Promise<void> {
-    if (Platform.OS !== 'android') {
-      return;
-    }
+    this.restartTimeout = setTimeout(async () => {
+      this.restartTimeout = null;
 
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      
-      if (status !== 'granted') {
-        console.warn('[BackgroundListeningManager] Notification permission not granted');
+      if (!this.restartCallback) {
+        console.error('[BackgroundListening] No restart callback set');
         return;
       }
 
-      await Notifications.setNotificationChannelAsync('voice-control', {
-        name: 'Voice Control',
-        importance: Notifications.AndroidImportance.LOW,
-        sound: null,
-        vibrationPattern: null,
-        enableLights: false,
-        enableVibrate: false,
-      });
+      try {
+        console.log(`[BackgroundListening] Executing restart attempt ${attempt}`);
+        await this.restartCallback();
+        
+        this.updateState({
+          lastRestartTime: Date.now(),
+          lastError: null,
+        });
 
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Voice Control Active',
-          body: 'Listening for voice commands in the background',
-          categoryIdentifier: 'voice-control',
-          sound: null,
-          priority: Notifications.AndroidNotificationPriority.LOW,
-        },
-        trigger: null,
-      });
+        console.log('[BackgroundListening] Restart successful');
+      } catch (error) {
+        console.error('[BackgroundListening] Restart failed:', error);
+        this.updateState({
+          lastError: error instanceof Error ? error.message : 'Restart failed',
+        });
 
-      console.log('[BackgroundListeningManager] Foreground service notification posted');
-    } catch (error) {
-      console.error('[BackgroundListeningManager] Failed to start foreground service:', error);
+        if (attempt < this.config.maxRestartAttempts) {
+          this.attemptRestart();
+        }
+      }
+    }, this.config.restartDelay);
+  }
+
+  onError(error: string): void {
+    console.log('[BackgroundListening] Error reported:', error);
+    this.updateState({ lastError: error });
+
+    if (this.config.autoRestart && this.state.isActive) {
+      this.attemptRestart();
     }
   }
 
-  private async stopForegroundService(): Promise<void> {
-    if (Platform.OS !== 'android') {
-      return;
-    }
-
-    try {
-      await Notifications.dismissAllNotificationsAsync();
-      console.log('[BackgroundListeningManager] Foreground service notification dismissed');
-    } catch (error) {
-      console.error('[BackgroundListeningManager] Failed to stop foreground service:', error);
-    }
-  }
-
-  updateConfig(config: Partial<BackgroundListeningConfig>): void {
-    this.config = {
-      ...this.config,
-      ...config,
-    };
-    
-    console.log('[BackgroundListeningManager] Config updated:', this.config);
-    
-    if (this.config.enableKeepAlive && !this.keepAliveTimer) {
-      this.startKeepAlive();
-    } else if (!this.config.enableKeepAlive && this.keepAliveTimer) {
-      clearInterval(this.keepAliveTimer);
-      this.keepAliveTimer = null;
-    }
-  }
-
-  getConfig(): BackgroundListeningConfig {
-    return { ...this.config };
+  resetRestartAttempts(): void {
+    this.updateState({ restartAttempts: 0 });
   }
 }
 
-let globalBackgroundManager: BackgroundListeningManager | null = null;
-
-export function getGlobalBackgroundManager(): BackgroundListeningManager {
-  if (!globalBackgroundManager) {
-    globalBackgroundManager = new BackgroundListeningManager();
-  }
-  return globalBackgroundManager;
-}
-
-export function setGlobalBackgroundManager(manager: BackgroundListeningManager): void {
-  globalBackgroundManager = manager;
-}
+export const backgroundListeningManager = BackgroundListeningManager.getInstance();
