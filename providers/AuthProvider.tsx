@@ -138,7 +138,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           },
         });
         
-        if (error) throw error;
+        if (error) {
+          console.error('Google OAuth 錯誤:', error);
+          if (error.message && error.message.includes('provider') && error.message.includes('not enabled')) {
+            throw new Error('Google 登入功能尚未在 Supabase 中啟用。請在 Supabase Dashboard > Authentication > Providers 中啟用 Google 提供者。');
+          }
+          throw error;
+        }
         return { data, error: null };
       } else {
         console.log('Mobile 平台 Google 登入');
