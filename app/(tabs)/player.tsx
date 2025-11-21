@@ -62,16 +62,16 @@ export default function PlayerScreen() {
   const { language } = useLanguage();
   const voiceControl = useVoiceControl();
   const membership = useMembership();
+  
+  // 安全的語音控制屬性訪問
   const voiceState = voiceControl || { usageCount: 0 };
-  const {
-    isListening: isVoiceListening = false,
-    startListening: startVoiceListening = () => Promise.resolve(),
-    stopListening: stopVoiceListening = () => Promise.resolve(),
-    lastCommand = null,
-    isProcessing: isVoiceProcessing = false,
-    alwaysListening = false,
-    toggleAlwaysListening = () => Promise.resolve()
-  } = voiceControl || {};
+  const isVoiceListening = voiceControl?.isListening ?? false;
+  const startVoiceListening = voiceControl?.startListening ?? (() => Promise.resolve());
+  const stopVoiceListening = voiceControl?.stopListening ?? (() => Promise.resolve());
+  const lastCommand = voiceControl?.lastCommand ?? null;
+  const isVoiceProcessing = voiceControl?.isProcessing ?? false;
+  const alwaysListening = voiceControl?.alwaysListening ?? false;
+  const toggleAlwaysListening = voiceControl?.toggleAlwaysListening ?? (() => Promise.resolve());
   const insets = useSafeAreaInsets();
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const { width: screenWidth, height: screenHeight } = dimensions;
@@ -1529,10 +1529,11 @@ export default function PlayerScreen() {
           />
         )}
 
-        {(voiceStatus && typeof voiceStatus === 'string') && (
-          <View style={styles.floatingStatusBar}>
+        {/* 錯誤提示統一顯示在左上方 */}
+        {(voiceStatus && typeof voiceStatus === 'string' && voiceStatus.trim().length > 0) && (
+          <View style={[styles.floatingStatusBar, videoSource && videoSource.uri ? styles.floatingStatusBarVideo : null]}>
             <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{voiceStatus}</Text>
+            <Text style={styles.statusText} numberOfLines={2}>{voiceStatus}</Text>
           </View>
         )}
 
@@ -2792,11 +2793,19 @@ const createStyles = () => {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 20,
     zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingStatusBarVideo: {
+    top: 80,
   },
   voiceControlCenter: {
     alignItems: "center",
