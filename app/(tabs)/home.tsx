@@ -70,6 +70,7 @@ import {
   getColumnCount,
   responsiveValue 
 } from "@/utils/responsive";
+import { VoiceControlWidget } from "@/components/VoiceControlWidget";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const maxWidth = getMaxWidth();
@@ -620,8 +621,15 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-
       {/* Referral Code Modal */}
+      <ReferralCodeModal
+        visible={showReferralModal}
+        onClose={() => setShowReferralModal(false)}
+        isFirstTime={true}
+      />
+      
+      {/* Voice Control Widget */}
+      <VoiceControlWidget />
       
       <ScrollView
         showsVerticalScrollIndicator={false}

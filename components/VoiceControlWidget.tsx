@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, Modal } from 'react-native';
 import { Mic, MicOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useVoiceControlV2 as useVoiceControl } from '@/providers/VoiceControlProviderV2';
+import { useVoiceControlV2 } from '@/providers/VoiceControlProviderV2';
 import { VoiceFeedbackOverlay } from './VoiceFeedbackOverlay';
 
 export const VoiceControlWidget: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const voiceControl = useVoiceControl();
+  const voiceControl = useVoiceControlV2();
   const [scaleAnim] = useState(new Animated.Value(1));
   const [showInfo, setShowInfo] = useState(false);
 
@@ -25,35 +25,20 @@ export const VoiceControlWidget: React.FC = () => {
       }),
     ]).start();
 
-    if (!voiceControl) {
-      console.warn('[VoiceControlWidget] Voice control context not available');
-      return;
-    }
-    
-    try {
-      if (voiceControl.isListening) {
-        if (voiceControl.stopListening && typeof voiceControl.stopListening === 'function') {
-          await voiceControl.stopListening();
-        }
-      } else {
-        if (voiceControl.startListening && typeof voiceControl.startListening === 'function') {
-          await voiceControl.startListening();
-        }
-      }
-    } catch (error) {
-      console.error('[VoiceControlWidget] Error toggling voice control:', error);
+    if (voiceControl.isListening) {
+      await voiceControl.stopListening();
+    } else {
+      await voiceControl.startListening();
     }
   };
 
   const getStatusColor = () => {
-    if (!voiceControl) return '#6b7280';
     if (voiceControl.isProcessing) return '#f59e0b';
     if (voiceControl.isListening) return '#10b981';
     return '#6b7280';
   };
 
   const getStatusText = () => {
-    if (!voiceControl) return 'Not available';
     if (voiceControl.isProcessing) return 'Processing';
     if (voiceControl.isListening) return 'Listening';
     return 'Tap to start';
@@ -77,7 +62,7 @@ export const VoiceControlWidget: React.FC = () => {
               },
             ]}
           >
-            {voiceControl?.isListening ? (
+            {voiceControl.isListening ? (
               <Mic size={24} color="#ffffff" />
             ) : (
               <MicOff size={24} color="#ffffff" />
@@ -91,11 +76,11 @@ export const VoiceControlWidget: React.FC = () => {
       </View>
 
       <VoiceFeedbackOverlay
-        isListening={voiceControl?.isListening ?? false}
-        isProcessing={voiceControl?.isProcessing ?? false}
-        lastCommand={voiceControl?.lastCommand ?? null}
-        lastIntent={null}
-        confidence={voiceControl?.confidence ?? 0}
+        isListening={voiceControl.isListening}
+        isProcessing={voiceControl.isProcessing}
+        lastCommand={voiceControl.lastCommand}
+        lastIntent={voiceControl.lastIntent}
+        confidence={voiceControl.confidence}
       />
 
       <Modal
@@ -118,16 +103,16 @@ export const VoiceControlWidget: React.FC = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Always Listening:</Text>
               <Text style={styles.infoValue}>
-                {voiceControl?.alwaysListening ? 'ON' : 'OFF'}
+                {voiceControl.alwaysListening ? 'ON' : 'OFF'}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Usage Count:</Text>
-              <Text style={styles.infoValue}>{voiceControl?.usageCount ?? 0}</Text>
+              <Text style={styles.infoValue}>{voiceControl.usageCount}</Text>
             </View>
 
-            {voiceControl?.lastCommand && (
+            {voiceControl.lastCommand && (
               <>
                 <View style={styles.divider} />
                 <View style={styles.infoRow}>
@@ -140,7 +125,7 @@ export const VoiceControlWidget: React.FC = () => {
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Confidence:</Text>
                   <Text style={styles.infoValue}>
-                    {Math.round((voiceControl.confidence ?? 0) * 100)}%
+                    {Math.round(voiceControl.confidence * 100)}%
                   </Text>
                 </View>
               </>
