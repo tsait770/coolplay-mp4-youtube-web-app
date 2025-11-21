@@ -25,16 +25,23 @@ export const VoiceControlWidget: React.FC = () => {
       }),
     ]).start();
 
-    if (!voiceControl) return;
+    if (!voiceControl) {
+      console.warn('[VoiceControlWidget] Voice control context not available');
+      return;
+    }
     
-    if (voiceControl.isListening) {
-      if (typeof voiceControl.stopListening === 'function') {
-        await voiceControl.stopListening();
+    try {
+      if (voiceControl.isListening) {
+        if (voiceControl.stopListening && typeof voiceControl.stopListening === 'function') {
+          await voiceControl.stopListening();
+        }
+      } else {
+        if (voiceControl.startListening && typeof voiceControl.startListening === 'function') {
+          await voiceControl.startListening();
+        }
       }
-    } else {
-      if (typeof voiceControl.startListening === 'function') {
-        await voiceControl.startListening();
-      }
+    } catch (error) {
+      console.error('[VoiceControlWidget] Error toggling voice control:', error);
     }
   };
 

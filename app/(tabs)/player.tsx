@@ -60,8 +60,20 @@ type VideoSourceType = "supported" | "extended" | "unsupported" | "unknown";
 export default function PlayerScreen() {
   const { t } = useTranslation();
   const { language } = useLanguage();
-  const voiceControl = useVoiceControl() ?? {};
+  const voiceControlRaw = useVoiceControl();
   const membership = useMembership();
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('[PlayerScreen] Voice control available:', {
+      exists: !!voiceControlRaw,
+      hasStartListening: typeof voiceControlRaw?.startListening,
+      hasStopListening: typeof voiceControlRaw?.stopListening,
+      hasToggleAlwaysListening: typeof voiceControlRaw?.toggleAlwaysListening,
+    });
+  }, [voiceControlRaw]);
+  
+  const voiceControl = voiceControlRaw ?? {};
   
   // 安全的語音控制屬性訪問
   const voiceState = voiceControl || { usageCount: 0 };
