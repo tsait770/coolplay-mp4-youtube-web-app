@@ -88,3 +88,33 @@ jobs:
           if [ -f backend.pid ]; then
             kill "$(cat backend.pid)" || true
           fi
+
+  supabase-verify:
+    name: Supabase Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies (bun)
+        run: bun install --no-progress
+
+      - name: Run Supabase verification
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: bun run verify:supabase
+
+      - name: Upload Supabase verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-verify-reports
+          path: |
+            supabase-verify-report.md
+            supabase-verify-report.json

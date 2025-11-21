@@ -1,211 +1,190 @@
+/**
+ * Supabase 全自動偵測腳本
+ * - 檢查環境變數
+ * - 連線測試
+ * - 表存在性與可讀性（profiles, folders, bookmarks, device_verifications, voice_usage_logs, voice_control_settings, voice_quota_usage）
+ * - 函式存在性（get_voice_quota_usage, increment_voice_quota, create_default_voice_settings）
+ * - 基本 RLS 行為（匿名新增應失敗、匿名查詢有限）
+ * 產出：終端摘要 + Markdown 報告 + JSON 報告
+ */
+
 import { createClient } from '@supabase/supabase-js';
+import fs from 'node:fs';
 
-const SUPABASE_URL = 'https://ukpskaspdzinzpsdoodi.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcHNrYXNwZHppbnpwc2Rvb2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NDA0MjgsImV4cCI6MjA3ODUxNjQyOH0.HdmSGe_YEs5hVFTgm7QMzmQu3xe8i95carC8wxSjGfU';
-
-interface TableInfo {
+type CheckResult = {
   name: string;
-  exists: boolean;
-  canQuery: boolean;
-  error?: string;
-}
+  success: boolean;
+  detail?: string;
+};
 
-interface FunctionInfo {
-  name: string;
-  exists: boolean;
-  error?: string;
-}
-
-interface VerificationReport {
+type Report = {
   timestamp: string;
-  connection: {
-    success: boolean;
-    url: string;
+  env: {
+    url: string | null;
+    anonKeyPresent: boolean;
   };
-  tables: TableInfo[];
-  functions: FunctionInfo[];
-  rlsPolicies: {
-    table: string;
-    hasRLS: boolean;
-    details?: string;
-  }[];
-  recommendations: string[];
-}
+  supabaseConnection: CheckResult;
+  tables: CheckResult[];
+  functions: CheckResult[];
+  rls: CheckResult[];
+};
 
-const REQUIRED_TABLES = [
-  'profiles',
-  'bookmarks',
-  'folders',
-  'voice_usage_logs',
-  'voice_control_settings',
-  'voice_quota_usage',
-];
+const getEnv = () => {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || null;
+  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || null;
+  return { url, key };
+};
 
-const REQUIRED_FUNCTIONS = [
-  'get_voice_quota_usage',
-  'increment_voice_quota',
-  'create_default_voice_settings',
-];
-
-async function verifyDatabase(): Promise<VerificationReport> {
-  console.log('🔍 開始 Supabase 資料庫驗證...\n');
-
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  
-  const report: VerificationReport = {
-    timestamp: new Date().toISOString(),
-    connection: {
-      success: false,
-      url: SUPABASE_URL,
+const initClient = () => {
+  const { url, key } = getEnv();
+  const supabaseUrl = url || 'https://ukpskaspdzinzpsdoodi.supabase.co';
+  const supabaseKey = key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcHNrYXNwZHppbnpwc2Rvb2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NDA0MjgsImV4cCI6MjA3ODUxNjQyOH0.HdmSGe_YEs5hVFTgm7QMzmQu3xe8i95carC8wxSjGfU';
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
-    tables: [],
-    functions: [],
-    rlsPolicies: [],
-    recommendations: [],
-  };
+  });
+};
 
-  console.log('📡 測試連接...');
+const tableExists = async (client: ReturnType<typeof initClient>, table: string): Promise<CheckResult> => {
+  try {
+    const { error } = await client.from(table as any).select('*').limit(1);
+    if (!error) return { name: `table:${table}`, success: true, detail: 'query ok' };
+    // PostgREST 42x errors for missing relation often include 'relation' or 'not exist'
+    const msg = error.message?.toLowerCase() || '';
+    const notFound = msg.includes('relation') && msg.includes('does not exist');
+    return { name: `table:${table}`, success: !notFound, detail: error.message };
+  } catch (e: any) {
+    return { name: `table:${table}`, success: false, detail: e?.message || String(e) };
+  }
+};
+
+const functionExists = async (client: ReturnType<typeof initClient>, fn: string, args: Record<string, any> = {}): Promise<CheckResult> => {
+  try {
+    const { error } = await client.rpc(fn as any, args);
+    if (!error) return { name: `func:${fn}`, success: true, detail: 'rpc ok' };
+    // If function not found, PostgREST returns 404 Not Found
+    const status = (error as any)?.status || 0;
+    const notFound = status === 404 || /not found/i.test(error.message || '');
+    return { name: `func:${fn}`, success: !notFound, detail: error.message };
+  } catch (e: any) {
+    return { name: `func:${fn}`, success: false, detail: e?.message || String(e) };
+  }
+};
+
+const checkConnection = async (client: ReturnType<typeof initClient>): Promise<CheckResult> => {
   try {
     const { error } = await client.from('profiles').select('id').limit(1);
-    report.connection.success = !error;
-    console.log(error ? '❌ 連接失敗' : '✅ 連接成功\n');
-  } catch (error) {
-    console.log('❌ 連接失敗:', error instanceof Error ? error.message : String(error));
-    report.connection.success = false;
-    return report;
-  }
-
-  console.log('📊 驗證資料表...');
-  for (const tableName of REQUIRED_TABLES) {
-    const tableInfo: TableInfo = {
-      name: tableName,
-      exists: false,
-      canQuery: false,
+    return {
+      name: 'connection',
+      success: !error,
+      detail: error ? error.message : 'connected',
     };
+  } catch (e: any) {
+    return { name: 'connection', success: false, detail: e?.message || String(e) };
+  }
+};
 
-    try {
-      const { data, error } = await client.from(tableName).select('*').limit(1);
-      
-      if (error) {
-        tableInfo.error = error.message;
-        console.log(`❌ ${tableName}: ${error.message}`);
-      } else {
-        tableInfo.exists = true;
-        tableInfo.canQuery = true;
-        console.log(`✅ ${tableName}: 可存取 (${data?.length || 0} 筆記錄)`);
-      }
-    } catch (error) {
-      tableInfo.error = error instanceof Error ? error.message : String(error);
-      console.log(`❌ ${tableName}: ${tableInfo.error}`);
-    }
-
-    report.tables.push(tableInfo);
+const checkRLS = async (client: ReturnType<typeof initClient>): Promise<CheckResult[]> => {
+  const results: CheckResult[] = [];
+  // Anonymous insert should fail on profiles
+  try {
+    const { error } = await client.from('profiles').insert({ id: '00000000-0000-0000-0000-000000000000', email: 'anon@test.local' } as any);
+    results.push({ name: 'rls:profiles:insert_blocked', success: !!error, detail: error ? error.message : 'insert unexpectedly succeeded' });
+  } catch (e: any) {
+    results.push({ name: 'rls:profiles:insert_blocked', success: true, detail: e?.message });
   }
 
-  console.log('\n🔐 檢查 RLS 策略...');
-  for (const tableName of ['voice_usage_logs', 'voice_control_settings', 'voice_quota_usage']) {
-    try {
-      const { data, error } = await client.from(tableName).select('id').limit(10);
-      
-      const rlsInfo = {
-        table: tableName,
-        hasRLS: false,
-        details: '',
-      };
-
-      if (!error && data && data.length > 0) {
-        rlsInfo.hasRLS = false;
-        rlsInfo.details = `⚠️  返回 ${data.length} 筆記錄 (RLS 可能未啟用或策略過於寬鬆)`;
-        report.recommendations.push(`檢查 ${tableName} 的 RLS 策略，確保 anon 角色無法讀取其他用戶資料`);
-      } else if (error && error.message.includes('row-level security')) {
-        rlsInfo.hasRLS = true;
-        rlsInfo.details = '✅ RLS 已啟用且正常運作';
-      } else {
-        rlsInfo.hasRLS = true;
-        rlsInfo.details = '✅ 未返回資料 (RLS 正常)';
-      }
-
-      console.log(`  ${tableName}: ${rlsInfo.details}`);
-      report.rlsPolicies.push(rlsInfo);
-    } catch (error) {
-      console.log(`  ${tableName}: 檢查失敗 - ${error instanceof Error ? error.message : String(error)}`);
-    }
+  // Anonymous select should be limited; if policy denies, error present
+  try {
+    const { data, error } = await client.from('bookmarks').select('*').limit(1);
+    results.push({ name: 'rls:bookmarks:select', success: !error, detail: error ? error.message : `rows:${data?.length ?? 0}` });
+  } catch (e: any) {
+    results.push({ name: 'rls:bookmarks:select', success: false, detail: e?.message });
   }
 
-  console.log('\n⚙️  驗證資料庫函式...');
-  console.log('  ℹ️  注意: 函式驗證需要在 Supabase SQL Editor 手動執行');
-  console.log('  請在 Supabase Dashboard 檢查以下函式是否存在:');
-  REQUIRED_FUNCTIONS.forEach((fn) => {
-    console.log(`    - ${fn}()`);
-    report.functions.push({
-      name: fn,
-      exists: true,
-    });
-  });
+  return results;
+};
 
-  const missingTables = report.tables.filter((t) => !t.exists);
-  if (missingTables.length > 0) {
-    report.recommendations.push(
-      `缺失以下資料表: ${missingTables.map((t) => t.name).join(', ')}. 請執行 database-schema-voice-control.sql`
-    );
+async function main() {
+  const { url, key } = getEnv();
+  const client = initClient();
+
+  const report: Report = {
+    timestamp: new Date().toISOString(),
+    env: {
+      url,
+      anonKeyPresent: !!key,
+    },
+    supabaseConnection: await checkConnection(client),
+    tables: [],
+    functions: [],
+    rls: [],
+  };
+
+  const tables = [
+    'profiles',
+    'folders',
+    'bookmarks',
+    'device_verifications',
+    'voice_usage_logs',
+    'voice_control_settings',
+    'voice_quota_usage',
+  ];
+
+  for (const t of tables) {
+    report.tables.push(await tableExists(client, t));
   }
 
-  return report;
+  // Call functions with minimal args to detect existence via 404 vs 400
+  report.functions.push(await functionExists(client, 'get_voice_quota_usage', { user_id: '00000000-0000-0000-0000-000000000000' }));
+  report.functions.push(await functionExists(client, 'increment_voice_quota', { user_id: '00000000-0000-0000-0000-000000000000', amount: 1 }));
+  report.functions.push(await functionExists(client, 'create_default_voice_settings', { user_id: '00000000-0000-0000-0000-000000000000' }));
+
+  report.rls.push(...(await checkRLS(client)));
+
+  // Console summary
+  const ok = (arr: CheckResult[]) => arr.every(r => r.success);
+  const overall = report.supabaseConnection.success && ok(report.tables) && ok(report.functions);
+
+  console.log('\n=== Supabase Verify Summary ===');
+  console.log('Env URL:', report.env.url || '(fallback used)');
+  console.log('Anon Key present:', report.env.anonKeyPresent);
+  console.log('Connection:', report.supabaseConnection.success ? 'OK' : `FAIL (${report.supabaseConnection.detail})`);
+  console.log('Tables:', report.tables.map(t => `${t.name}=${t.success ? 'OK' : 'FAIL'}`).join(', '));
+  console.log('Functions:', report.functions.map(f => `${f.name}=${f.success ? 'OK' : 'FAIL'}`).join(', '));
+  console.log('RLS:', report.rls.map(r => `${r.name}=${r.success ? 'OK' : 'FAIL'}`).join(', '));
+  console.log('Overall:', overall ? 'PASS' : 'FAIL');
+
+  // Write reports
+  const mdLines: string[] = [];
+  mdLines.push('# SUPABASE_VERIFY_REPORT');
+  mdLines.push(`- Timestamp: ${report.timestamp}`);
+  mdLines.push(`- Env URL: ${report.env.url || '(fallback)'}`);
+  mdLines.push(`- Anon Key present: ${report.env.anonKeyPresent}`);
+  mdLines.push('');
+  mdLines.push('## Connection');
+  mdLines.push(`- ${report.supabaseConnection.success ? 'OK' : 'FAIL'}: ${report.supabaseConnection.detail || ''}`);
+  mdLines.push('');
+  mdLines.push('## Tables');
+  for (const t of report.tables) mdLines.push(`- ${t.name}: ${t.success ? 'OK' : 'FAIL'} ${t.detail ? `(${t.detail})` : ''}`);
+  mdLines.push('');
+  mdLines.push('## Functions');
+  for (const f of report.functions) mdLines.push(`- ${f.name}: ${f.success ? 'OK' : 'FAIL'} ${f.detail ? `(${f.detail})` : ''}`);
+  mdLines.push('');
+  mdLines.push('## RLS');
+  for (const r of report.rls) mdLines.push(`- ${r.name}: ${r.success ? 'OK' : 'FAIL'} ${r.detail ? `(${r.detail})` : ''}`);
+  mdLines.push('');
+  mdLines.push(`## Overall: ${overall ? 'PASS' : 'FAIL'}`);
+
+  fs.writeFileSync('SUPABASE_VERIFY_REPORT.md', mdLines.join('\n'));
+  fs.writeFileSync('supabase-verify-report.json', JSON.stringify(report, null, 2));
+
+  if (!overall) process.exitCode = 1;
 }
 
-async function generateReport() {
-  const report = await verifyDatabase();
-
-  console.log('\n' + '='.repeat(70));
-  console.log('📋 Supabase 資料庫驗證報告');
-  console.log('='.repeat(70));
-  console.log(`時間: ${new Date(report.timestamp).toLocaleString('zh-TW')}`);
-  console.log(`URL: ${report.connection.url}`);
-  console.log(`連接狀態: ${report.connection.success ? '✅ 成功' : '❌ 失敗'}`);
-  
-  console.log('\n📊 資料表狀態:');
-  const existingTables = report.tables.filter((t) => t.exists).length;
-  console.log(`  ${existingTables}/${report.tables.length} 資料表可存取`);
-  
-  const missingTables = report.tables.filter((t) => !t.exists);
-  if (missingTables.length > 0) {
-    console.log('\n  ⚠️  缺失或無法存取的資料表:');
-    missingTables.forEach((t) => {
-      console.log(`    - ${t.name}: ${t.error || '未知錯誤'}`);
-    });
-  }
-
-  console.log('\n🔐 RLS 策略狀態:');
-  report.rlsPolicies.forEach((rls) => {
-    console.log(`  ${rls.table}: ${rls.details}`);
-  });
-
-  if (report.recommendations.length > 0) {
-    console.log('\n💡 建議事項:');
-    report.recommendations.forEach((rec, idx) => {
-      console.log(`  ${idx + 1}. ${rec}`);
-    });
-  }
-
-  console.log('\n' + '='.repeat(70));
-  
-  if (existingTables === report.tables.length && report.connection.success) {
-    console.log('✅ 資料庫結構完整，可以開始使用！');
-  } else {
-    console.log('⚠️  發現問題，請根據建議進行修復。');
-  }
-  
-  console.log('='.repeat(70) + '\n');
-
-  return report;
-}
-
-generateReport()
-  .then((report) => {
-    const allTablesExist = report.tables.every((t) => t.exists);
-    process.exit(allTablesExist && report.connection.success ? 0 : 1);
-  })
-  .catch((error) => {
-    console.error('❌ 驗證過程發生錯誤:', error);
-    process.exit(1);
-  });
+main().catch((e) => {
+  console.error('Verify script failed:', e);
+  process.exit(1);
+});

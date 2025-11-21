@@ -7,19 +7,41 @@ import { supabase } from "@/lib/supabase";
 export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
-  const baseUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL || process.env.EXPO_PUBLIC_API_URL;
-  
-  if (baseUrl) {
-    console.log('[tRPC] Using base URL:', baseUrl);
-    return baseUrl;
+  const env = process.env.NODE_ENV;
+  const devUrl = process.env.EXPO_PUBLIC_API_URL;
+  const prodUrl = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+
+  // Development: prefer local API URL
+  if (env !== 'production') {
+    if (devUrl) {
+      console.log('[tRPC] Using DEV base URL:', devUrl);
+      return devUrl;
+    }
+    // Web fallback to current origin when available
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      console.log('[tRPC] Using window origin as DEV base URL:', window.location.origin);
+      return window.location.origin;
+    }
+    console.warn('[tRPC] DEV base URL missing, falling back to http://localhost:3000');
+    return 'http://localhost:3000';
   }
 
-  console.error('[tRPC] No base URL found in environment variables');
-  console.error('[tRPC] Available env vars:', Object.keys(process.env).filter(k => k.startsWith('EXPO_PUBLIC')));
-  
-  throw new Error(
-    "No base url found, please set EXPO_PUBLIC_RORK_API_BASE_URL or EXPO_PUBLIC_API_URL"
-  );
+  // Production: prefer RORK base URL, then fallback to explicitly provided API URL
+  if (prodUrl) {
+    console.log('[tRPC] Using PROD base URL:', prodUrl);
+    return prodUrl;
+  }
+  if (devUrl) {
+    console.log('[tRPC] Using fallback PROD base URL (EXPO_PUBLIC_API_URL):', devUrl);
+    return devUrl;
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    console.log('[tRPC] Using window origin as PROD base URL:', window.location.origin);
+    return window.location.origin;
+  }
+
+  console.error('[tRPC] No base URL found. Please set EXPO_PUBLIC_API_URL (dev) or EXPO_PUBLIC_RORK_API_BASE_URL (prod).');
+  throw new Error('Missing tRPC base URL configuration');
 };
 
 export const trpcClient = trpc.createClient({

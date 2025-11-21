@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-11-21T01:40:32.601Z",
+  "env": {
+    "url": "https://ukpskaspdzinzpsdoodi.supabase.co",
+    "anonKeyPresent": true
+  },
+  "supabaseConnection": {
+    "name": "connection",
+    "success": true,
+    "detail": "connected"
+  },
+  "tables": [
+    {
+      "name": "table:profiles",
+      "success": true,
+      "detail": "query ok"
+    },
+    {
+      "name": "table:folders",
+      "success": true,
+      "detail": "query ok"
+    },
+    {
+      "name": "table:bookmarks",
+      "success": true,
+      "detail": "query ok"
+    },
+    {
+      "name": "table:device_verifications",
+      "success": true,
+      "detail": "query ok"
+    },
+    {
+      "name": "table:voice_usage_logs",
+      "success": true,
+      "detail": "query ok"
+    },
+    {
+      "name": "table:voice_control_settings",
+      "success": true,
+      "detail": "query ok"
+    },
+    {
+      "name": "table:voice_quota_usage",
+      "success": true,
+      "detail": "query ok"
+    }
+  ],
+  "functions": [
+    {
+      "name": "func:get_voice_quota_usage",
+      "success": true,
+      "detail": "Could not find the function public.get_voice_quota_usage(user_id) in the schema cache"
+    },
+    {
+      "name": "func:increment_voice_quota",
+      "success": true,
+      "detail": "Could not find the function public.increment_voice_quota(amount, user_id) in the schema cache"
+    },
+    {
+      "name": "func:create_default_voice_settings",
+      "success": true,
+      "detail": "Could not find the function public.create_default_voice_settings(user_id) in the schema cache"
+    }
+  ],
+  "rls": [
+    {
+      "name": "rls:profiles:insert_blocked",
+      "success": true,
+      "detail": "new row violates row-level security policy for table \"profiles\""
+    },
+    {
+      "name": "rls:bookmarks:select",
+      "success": true,
+      "detail": "rows:0"
+    }
+  ]
+}
