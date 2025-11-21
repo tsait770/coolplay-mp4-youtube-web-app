@@ -40,6 +40,7 @@ import { useVoiceControlV2 as useVoiceControl } from "@/providers/VoiceControlPr
 import { useMembership } from "@/providers/MembershipProvider";
 import { VoiceConfirmationOverlay } from "@/components/VoiceConfirmationOverlay";
 import { VoiceFeedbackOverlay } from "@/components/VoiceFeedbackOverlay";
+import { VoiceErrorDisplay } from "@/components/VoiceErrorDisplay";
 
 interface VoiceCommand {
   id: string;
@@ -159,6 +160,7 @@ export default function PlayerScreen() {
   const [showVoiceTutorial, setShowVoiceTutorial] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingCommand, setPendingCommand] = useState<{ command: string; confidence: number } | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const [commandAction, setCommandAction] = useState("");
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -280,15 +282,15 @@ export default function PlayerScreen() {
       try {
         const detail = (e as CustomEvent).detail as { code?: string; message?: string } | undefined;
         const code = detail?.code || 'mic-error';
-        const errorMsg = code === 'mic-denied' 
+        const errorMsg = code === 'not-allowed' 
           ? t('microphone_permission_denied')
           : detail?.message || t('voice_error_generic');
-        setVoiceStatus(errorMsg);
+        setVoiceError(errorMsg);
         setIsVoiceActive(false);
-        if (code === 'mic-denied' && alwaysListening) {
+        if (code === 'not-allowed' && alwaysListening) {
           toggleAlwaysListening();
         }
-        setTimeout(() => setVoiceStatus(''), 5000);
+        setTimeout(() => setVoiceError(null), 8000);
       } catch {}
     };
 
@@ -1541,8 +1543,20 @@ export default function PlayerScreen() {
           />
         )}
 
-        {/* 錯誤提示統一顯示在左上方 */}
-        {(voiceStatus && typeof voiceStatus === 'string' && voiceStatus.trim().length > 0) && (
+        {/* Voice error display */}
+        <VoiceErrorDisplay
+          error={voiceError}
+          onDismiss={() => setVoiceError(null)}
+          onRetry={async () => {
+            setVoiceError(null);
+            if (toggleAlwaysListening && typeof toggleAlwaysListening === 'function') {
+              await toggleAlwaysListening();
+            }
+          }}
+        />
+        
+        {/* Status message display (success, info) */}
+        {(voiceStatus && typeof voiceStatus === 'string' && voiceStatus.trim().length > 0 && !voiceError) && (
           <View style={[styles.floatingStatusBar, videoSource && videoSource.uri ? styles.floatingStatusBarVideo : null]}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText} numberOfLines={2}>{voiceStatus}</Text>
