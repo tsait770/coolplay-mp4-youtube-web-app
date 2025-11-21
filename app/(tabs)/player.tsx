@@ -280,7 +280,8 @@ export default function PlayerScreen() {
   useEffect(() => {
     const errorHandler = (e: Event) => {
       try {
-        const detail = (e as CustomEvent).detail as { code?: string; message?: string } | undefined;
+        const customEvent = e as any;
+        const detail = customEvent?.detail as { code?: string; message?: string } | undefined;
         const code = detail?.code || 'mic-error';
         const errorMsg = code === 'not-allowed' 
           ? t('microphone_permission_denied')
@@ -291,23 +292,31 @@ export default function PlayerScreen() {
           toggleAlwaysListening();
         }
         setTimeout(() => setVoiceError(null), 8000);
-      } catch {}
+      } catch (err) {
+        console.error('[PlayerScreen] Error handling voice error:', err);
+      }
     };
 
     const confirmationHandler = (e: Event) => {
       try {
-        const detail = (e as CustomEvent).detail as { text: string; parsedCommand: any };
+        const customEvent = e as any;
+        const detail = customEvent?.detail as { text: string; parsedCommand: any };
         setPendingCommand({ command: detail.text, confidence: detail.parsedCommand?.confidence || 0.7 });
         setShowConfirmation(true);
-      } catch {}
+      } catch (err) {
+        console.error('[PlayerScreen] Error handling confirmation:', err);
+      }
     };
 
     const retryHandler = (e: Event) => {
       try {
-        const detail = (e as CustomEvent).detail as { text: string };
+        const customEvent = e as any;
+        const detail = customEvent?.detail as { text: string };
         setVoiceStatus(t('voice_low_confidence_retry'));
         setTimeout(() => setVoiceStatus(''), 3000);
-      } catch {}
+      } catch (err) {
+        console.error('[PlayerScreen] Error handling retry:', err);
+      }
     };
 
     if (typeof window !== 'undefined') {
@@ -326,9 +335,10 @@ export default function PlayerScreen() {
 
   // Listen for voice commands from Siri integration
   useEffect(() => {
-    const handleVoiceCommand = (event: CustomEvent) => {
+    const handleVoiceCommand = (event: Event) => {
+      const customEvent = event as any;
       try {
-        const { command } = event.detail || {};
+        const { command } = customEvent?.detail || {};
         if (!command) return;
         
         switch (command) {
