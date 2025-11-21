@@ -38,7 +38,9 @@
         "INTERNET",
         "android.permission.VIBRATE",
         "android.permission.REQUEST_INSTALL_PACKAGES",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       "manifest": {
         "android:supportsPictureInPicture": true

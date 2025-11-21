@@ -15,6 +15,7 @@ import { ReferralProvider, useReferral } from "@/providers/ReferralProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { StripeProvider } from "@/providers/StripeProvider";
 import { VoiceControlProvider, useVoiceControl } from "@/providers/VoiceControlProvider";
+import { VoiceControlProviderV2 } from "@/providers/VoiceControlProviderV2";
 import { SiriIntegrationProvider, useSiriIntegration } from "@/providers/SiriIntegrationProvider";
 import { StorageProvider, useStorage } from "@/providers/StorageProvider";
 import ReferralCodeModal from "@/components/ReferralCodeModal";
@@ -440,13 +441,15 @@ export default function RootLayout() {
                               <BookmarkProvider>
                                 <ReferralProvider>
                                   <SoundProvider>
-                                    <VoiceControlProvider>
-                                      <SiriIntegrationProvider>
-                                        <GestureHandlerRootView style={styles.container}>
-                                          <RootLayoutNav />
-                                        </GestureHandlerRootView>
-                                      </SiriIntegrationProvider>
-                                    </VoiceControlProvider>
+                                    <VoiceControlProviderV2>
+                                      <VoiceControlProvider>
+                                        <SiriIntegrationProvider>
+                                          <GestureHandlerRootView style={styles.container}>
+                                            <RootLayoutNav />
+                                          </GestureHandlerRootView>
+                                        </SiriIntegrationProvider>
+                                      </VoiceControlProvider>
+                                    </VoiceControlProviderV2>
                                   </SoundProvider>
                                 </ReferralProvider>
                               </BookmarkProvider>
