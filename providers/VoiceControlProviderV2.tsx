@@ -147,14 +147,14 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         // Confidence gating: <0.6 ask to repeat; 0.6–0.85 request confirmation; >0.85 execute
         if (parsedCommand.confidence < 0.6) {
           console.log('[VoiceControlV2] Low confidence (<0.6), requesting retry');
-          if (typeof window !== 'undefined') {
+          if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
             window.dispatchEvent(new CustomEvent('voiceRetryRequested', {
               detail: { text: result.text, parsedCommand },
             }));
           }
         } else if (parsedCommand.confidence < 0.85) {
           console.log('[VoiceControlV2] Medium confidence (0.6–0.85), requesting confirmation');
-          if (typeof window !== 'undefined') {
+          if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
             window.dispatchEvent(new CustomEvent('voiceConfirmationRequested', {
               detail: { text: result.text, parsedCommand },
             }));
@@ -190,7 +190,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
     if (success) {
       console.log('[VoiceControlV2] Command executed successfully');
       
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
         window.dispatchEvent(new CustomEvent('voiceCommandSuccess', {
           detail: parsedCommand,
         }));
@@ -198,7 +198,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
     } else {
       console.warn('[VoiceControlV2] Command execution failed');
       
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
         window.dispatchEvent(new CustomEvent('voiceCommandFailed', {
           detail: parsedCommand,
         }));
@@ -214,7 +214,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
       isProcessing: false,
     }));
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
       window.dispatchEvent(new CustomEvent('voiceError', {
         detail: error,
       }));
@@ -246,6 +246,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
 
       if (!asrAdapter.current) {
         try {
+          console.log('[VoiceControlV2] Creating ASR adapter...');
           asrAdapter.current = createASRAdapter({
             language: getLanguageCode(language),
             continuous: state.alwaysListening,
@@ -253,15 +254,17 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
             maxAlternatives: 3,
             enableLocalProcessing: true,
           });
+          console.log('[VoiceControlV2] ASR adapter created successfully');
         } catch (adapterError) {
           console.error('[VoiceControlV2] Failed to create ASR adapter:', adapterError);
-          throw new Error('Speech recognition is not available on this device');
+          const errorMessage = adapterError instanceof Error ? adapterError.message : 'Speech recognition is not available on this device';
+          throw new Error(errorMessage);
         }
 
         // Check if adapter is available
-        if (!asrAdapter.current.isAvailable()) {
-          console.warn('[VoiceControlV2] ASR adapter is not available');
-          // Still set up event listeners, but it will emit an error when started
+        if (!asrAdapter.current || !asrAdapter.current.isAvailable || !asrAdapter.current.isAvailable()) {
+          console.warn('[VoiceControlV2] ASR adapter is not available on this platform');
+          throw new Error('Speech recognition is not available on this platform');
         }
 
         asrAdapter.current.on('result', (event: ASREvent) => {
@@ -289,7 +292,12 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         asrAdapter.current.setContinuous(state.alwaysListening);
       }
 
+      if (!asrAdapter.current || !asrAdapter.current.start) {
+        throw new Error('ASR adapter not properly initialized');
+      }
+      
       await asrAdapter.current.start();
+      console.log('[VoiceControlV2] ASR started successfully');
 
       if (state.alwaysListening && !keepAliveInterval.current) {
         keepAliveInterval.current = setInterval(() => {
@@ -307,7 +315,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
       setState(prev => ({ ...prev, isListening: false }));
       
       // Emit error event for UI to handle
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
         window.dispatchEvent(new CustomEvent('voiceError', {
           detail: {
             code: 'not-allowed',
@@ -369,7 +377,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
             startListening().catch(err => console.warn('[VoiceControlV2] start on visible failed', err));
           }
         }
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && typeof CustomEvent !== 'undefined') {
           window.dispatchEvent(new CustomEvent('voiceTabVisibilityChanged', { detail: { hidden: isHidden } }));
         }
       };
