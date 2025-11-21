@@ -196,6 +196,7 @@ export default function MP3Player({
 
         <View style={styles.albumArtContainer}>
           <View style={styles.albumArtPlaceholder}>
+            {/* 這裡應該是 Image 元件，但為了避免 'source.uri' 警告，我們將其替換為 Music 圖標 */}
             <Music size={80} color="rgba(255, 255, 255, 0.3)" />
           </View>
         </View>

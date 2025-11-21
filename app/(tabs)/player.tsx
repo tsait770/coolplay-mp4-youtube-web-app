@@ -60,7 +60,7 @@ type VideoSourceType = "supported" | "extended" | "unsupported" | "unknown";
 export default function PlayerScreen() {
   const { t } = useTranslation();
   const { language } = useLanguage();
-  const voiceControl = useVoiceControl();
+  const voiceControl = useVoiceControl() ?? {};
   const membership = useMembership();
   
   // 安全的語音控制屬性訪問
