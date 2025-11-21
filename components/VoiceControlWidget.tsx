@@ -25,20 +25,28 @@ export const VoiceControlWidget: React.FC = () => {
       }),
     ]).start();
 
+    if (!voiceControl) return;
+    
     if (voiceControl.isListening) {
-      await voiceControl.stopListening();
+      if (typeof voiceControl.stopListening === 'function') {
+        await voiceControl.stopListening();
+      }
     } else {
-      await voiceControl.startListening();
+      if (typeof voiceControl.startListening === 'function') {
+        await voiceControl.startListening();
+      }
     }
   };
 
   const getStatusColor = () => {
+    if (!voiceControl) return '#6b7280';
     if (voiceControl.isProcessing) return '#f59e0b';
     if (voiceControl.isListening) return '#10b981';
     return '#6b7280';
   };
 
   const getStatusText = () => {
+    if (!voiceControl) return 'Not available';
     if (voiceControl.isProcessing) return 'Processing';
     if (voiceControl.isListening) return 'Listening';
     return 'Tap to start';
@@ -62,7 +70,7 @@ export const VoiceControlWidget: React.FC = () => {
               },
             ]}
           >
-            {voiceControl.isListening ? (
+            {voiceControl?.isListening ? (
               <Mic size={24} color="#ffffff" />
             ) : (
               <MicOff size={24} color="#ffffff" />
@@ -76,11 +84,11 @@ export const VoiceControlWidget: React.FC = () => {
       </View>
 
       <VoiceFeedbackOverlay
-        isListening={voiceControl.isListening}
-        isProcessing={voiceControl.isProcessing}
-        lastCommand={voiceControl.lastCommand}
+        isListening={voiceControl?.isListening ?? false}
+        isProcessing={voiceControl?.isProcessing ?? false}
+        lastCommand={voiceControl?.lastCommand ?? null}
         lastIntent={null}
-        confidence={voiceControl.confidence}
+        confidence={voiceControl?.confidence ?? 0}
       />
 
       <Modal
@@ -103,16 +111,16 @@ export const VoiceControlWidget: React.FC = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Always Listening:</Text>
               <Text style={styles.infoValue}>
-                {voiceControl.alwaysListening ? 'ON' : 'OFF'}
+                {voiceControl?.alwaysListening ? 'ON' : 'OFF'}
               </Text>
             </View>
 
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Usage Count:</Text>
-              <Text style={styles.infoValue}>{voiceControl.usageCount}</Text>
+              <Text style={styles.infoValue}>{voiceControl?.usageCount ?? 0}</Text>
             </View>
 
-            {voiceControl.lastCommand && (
+            {voiceControl?.lastCommand && (
               <>
                 <View style={styles.divider} />
                 <View style={styles.infoRow}>
@@ -125,7 +133,7 @@ export const VoiceControlWidget: React.FC = () => {
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Confidence:</Text>
                   <Text style={styles.infoValue}>
-                    {Math.round(voiceControl.confidence * 100)}%
+                    {Math.round((voiceControl.confidence ?? 0) * 100)}%
                   </Text>
                 </View>
               </>
