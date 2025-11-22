@@ -234,6 +234,30 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
     console.log('[VoiceControlV2] ASR Ended');
     setState(prev => ({ ...prev, isListening: false }));
   }, []);
+  
+  useEffect(() => {
+    const handleConfirmedCommand = async (e: Event) => {
+      try {
+        const parsedCommand = (e as CustomEvent).detail as ParsedCommand | undefined;
+        if (parsedCommand) {
+          console.log('[VoiceControlV2] Executing confirmed command:', parsedCommand);
+          await executeCommand(parsedCommand);
+        }
+      } catch (error) {
+        console.error('[VoiceControlV2] Error executing confirmed command:', error);
+      }
+    };
+    
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('voiceCommandConfirmed', handleConfirmedCommand as EventListener);
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('voiceCommandConfirmed', handleConfirmedCommand as EventListener);
+      }
+    };
+  }, [executeCommand]);
 
   const startListening = useCallback(async () => {
     try {
