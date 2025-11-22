@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
   },
   content: {
     position: 'absolute',
-    left: 20,
-    right: 20,
+    left: 16,
+    right: 16,
     backgroundColor: '#1f2937',
     borderRadius: 16,
     padding: 20,
