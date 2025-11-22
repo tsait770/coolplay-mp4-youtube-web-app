@@ -144,6 +144,11 @@ export default function PlayerScreen() {
   const [commandName, setCommandName] = useState("");
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [isContentLoaded, setIsContentLoaded] = useState(false);
+  
+  // Voice confirmation state
+  const [showVoiceConfirmation, setShowVoiceConfirmation] = useState(false);
+  const [pendingCommand, setPendingCommand] = useState<{ text: string; parsedCommand: any } | null>(null);
+  const confirmationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [commandAction, setCommandAction] = useState("");
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -296,6 +301,46 @@ export default function PlayerScreen() {
       }
     };
   }, [t, alwaysListening, toggleAlwaysListening]);
+  
+  // Listen for voice confirmation requests
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail as { text: string; parsedCommand: any } | undefined;
+        if (detail) {
+          console.log('[PlayerScreen] Voice confirmation requested:', detail);
+          setPendingCommand(detail);
+          setShowVoiceConfirmation(true);
+          
+          // Auto-hide after 8 seconds if no user action
+          if (confirmationTimeoutRef.current) {
+            clearTimeout(confirmationTimeoutRef.current);
+          }
+          confirmationTimeoutRef.current = setTimeout(() => {
+            setShowVoiceConfirmation(false);
+            setPendingCommand(null);
+            setVoiceStatus(t('command_timeout'));
+            setTimeout(() => setVoiceStatus(''), 2000);
+          }, 8000);
+        }
+      } catch (error) {
+        console.error('[PlayerScreen] Error handling voice confirmation request:', error);
+      }
+    };
+    
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('voiceConfirmationRequested', handler as EventListener);
+    }
+    
+    return () => {
+      if (confirmationTimeoutRef.current) {
+        clearTimeout(confirmationTimeoutRef.current);
+      }
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('voiceConfirmationRequested', handler as EventListener);
+      }
+    };
+  }, [t]);
 
   // Listen for voice commands from Siri integration
   useEffect(() => {
@@ -1063,6 +1108,43 @@ export default function PlayerScreen() {
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
+  
+  // Handle voice confirmation
+  const handleVoiceConfirm = useCallback(async () => {
+    if (confirmationTimeoutRef.current) {
+      clearTimeout(confirmationTimeoutRef.current);
+    }
+    
+    setShowVoiceConfirmation(false);
+    
+    if (pendingCommand?.parsedCommand) {
+      console.log('[PlayerScreen] Confirmed command:', pendingCommand.parsedCommand);
+      setVoiceStatus(`${t('executing')}: ${pendingCommand.text}`);
+      
+      // Execute the command via VoiceControlV2 (it will handle through GlobalPlayerManager)
+      // Dispatch custom event to notify VoiceControlV2 to execute
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('voiceCommandConfirmed', {
+          detail: pendingCommand.parsedCommand,
+        }));
+      }
+      
+      setTimeout(() => setVoiceStatus(''), 2000);
+    }
+    
+    setPendingCommand(null);
+  }, [pendingCommand, t]);
+  
+  const handleVoiceCancel = useCallback(() => {
+    if (confirmationTimeoutRef.current) {
+      clearTimeout(confirmationTimeoutRef.current);
+    }
+    
+    setShowVoiceConfirmation(false);
+    setPendingCommand(null);
+    setVoiceStatus(t('command_cancelled'));
+    setTimeout(() => setVoiceStatus(''), 2000);
+  }, [t]);
 
   // Removed back button functionality - UI element deleted
 
@@ -1673,6 +1755,15 @@ export default function PlayerScreen() {
           </View>
         </Modal>
 
+        {/* Voice Confirmation Overlay */}
+        <VoiceConfirmationOverlay
+          visible={showVoiceConfirmation}
+          command={pendingCommand?.text || ''}
+          confidence={pendingCommand?.parsedCommand?.confidence || 0}
+          onConfirm={handleVoiceConfirm}
+          onCancel={handleVoiceCancel}
+        />
+        
         <Modal
           visible={showCustomCommandModal}
           animationType="slide"
