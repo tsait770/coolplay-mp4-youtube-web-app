@@ -3,11 +3,11 @@ import {
   Animated,
   Pressable,
   Text,
-  Image,
   StyleSheet,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { SafeImage } from '@/components/SafeImage';
 import Colors from '@/constants/colors';
 import { DesignTokens } from '@/constants/designTokens';
 import { AnimatedCardProps } from '../utils/types';
@@ -139,7 +139,7 @@ export const HoverCard: React.FC<AnimatedCardProps> = ({
         {imageUri && (
           <View style={styles.imageContainer}>
             <Animated.View style={animatedImageStyle}>
-              <Image
+              <SafeImage
                 source={{ uri: imageUri }}
                 style={styles.image}
                 resizeMode="cover"

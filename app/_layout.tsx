@@ -331,6 +331,18 @@ export default function RootLayout() {
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Global error handler for uncaught errors
+    const handleGlobalError = (error: any) => {
+      console.error('[App] Global error caught:', error);
+      if (error?.json?.name === 'NoSuchKey') {
+        console.error('[App] NoSuchKey error detected - likely Supabase Storage issue');
+        console.error('[App] Error details:', JSON.stringify(error, null, 2));
+      }
+    };
+    
+    // Set up global error handler
+    (global as any).__handleAppError = handleGlobalError;
+    
     const initialize = async () => {
       try {
         console.log('[App] Starting initialization...');
@@ -350,6 +362,10 @@ export default function RootLayout() {
         
         const duration = Date.now() - startTime;
         console.log(`[App] Initialization completed in ${duration}ms`);
+        console.log('[App] All environment variables loaded');
+        console.log('[App] NODE_ENV:', process.env.NODE_ENV);
+        console.log('[App] EXPO_PUBLIC_SUPABASE_URL exists:', !!process.env.EXPO_PUBLIC_SUPABASE_URL);
+        console.log('[App] EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
         
         setTimeout(() => {
           SplashScreen.hideAsync();
@@ -396,7 +412,12 @@ export default function RootLayout() {
         }, 2000);
       } catch (error) {
         console.error('[App] Initialization error:', error);
-        setInitError(error instanceof Error ? error.message : 'Unknown error');
+        console.error('[App] Error type:', typeof error);
+        console.error('[App] Error keys:', error ? Object.keys(error) : 'null');
+        if (error && typeof error === 'object') {
+          console.error('[App] Error JSON:', JSON.stringify(error, null, 2));
+        }
+        setInitError(error instanceof Error ? error.message : JSON.stringify(error));
         SplashScreen.hideAsync();
       }
     };
