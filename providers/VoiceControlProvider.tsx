@@ -523,7 +523,10 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
       });
 
       // 3. 創建錄音實例
-      const { recording } = await Audio.Recording.createAsync({
+      const recording = new Audio.Recording();
+
+      // 4. 準備錄音
+      await recording.prepareToRecordAsync({
         // ... (保持原有的錄音配置)
         android: {
           extension: '.m4a',
@@ -550,7 +553,7 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         },
       });
 
-      // 4. 啟動錄音
+      // 5. 啟動錄音
       await recording.startAsync(); // 確保錄音已成功啟動
 
       recordingRef.current = recording;
