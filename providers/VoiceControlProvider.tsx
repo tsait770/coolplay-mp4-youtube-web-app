@@ -510,7 +510,7 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         playsInSilentModeIOS: true,
       });
 
-	      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY, {
+      const { recording, status } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY, {
         android: {
           extension: '.m4a',
           outputFormat: Audio.AndroidOutputFormat.MPEG_4,
@@ -536,18 +536,18 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         },
       });
       
-	      recordingRef.current = recording;
-	      
-	      // 顯式調用 startAsync 確保錄音開始，這是修復 "recorder not prepared" 錯誤的關鍵
-	      await recording.startAsync(); 
-	      console.log('Native recording started');
-	
-	      // Stop after 5 seconds
-	      setTimeout(async () => {
-	        if (recordingRef.current) {
-	            await stopNativeRecording();
-	        }
-	      }, 5000);
+      recordingRef.current = recording;
+      
+      // 顯式調用 startAsync 確保錄音開始，這是修復 "recorder not prepared" 錯誤的關鍵
+      await recording.startAsync(); 
+      console.log('Native recording started');
+    
+      // Stop after 5 seconds
+      setTimeout(async () => {
+        if (recordingRef.current) {
+            await stopNativeRecording();
+        }
+      }, 5000);
 
     } catch (error) {
       console.error('Failed to start native recording:', error);
