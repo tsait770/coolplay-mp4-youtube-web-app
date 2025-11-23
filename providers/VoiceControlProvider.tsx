@@ -499,18 +499,32 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
 
   const startNativeRecording = useCallback(async () => {
     try {
+      // 1. 權限檢查與請求
       const permission = await Audio.requestPermissionsAsync();
       if (permission.status !== 'granted') {
         console.warn('Audio recording permission denied');
-        return;
+        // 關鍵優化 1: 權限被拒絕時，重置 alwaysListening 狀態並停止
+        setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
+        if (typeof saveSettings === 'function') {
+          await saveSettings({ alwaysListening: false });
+        }
+        // 額外建議: 觸發一個 UI 提示事件，告知使用者權限被拒絕
+        // if (typeof window !== 'undefined') {
+        //   window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-denied', message: 'Microphone permission denied. Please enable it in settings.' } }));
+        // }
+        return; // 終止錄音流程
       }
 
+      // 2. 音訊模式設置
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        // 確保 iOS 錄音模式正確設置
       });
 
-      const { recording, status } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY, {
+      // 3. 創建錄音實例
+      const { recording } = await Audio.Recording.createAsync({
+        // ... (保持原有的錄音配置)
         android: {
           extension: '.m4a',
           outputFormat: Audio.AndroidOutputFormat.MPEG_4,
@@ -535,25 +549,33 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
           bitsPerSecond: 128000,
         },
       });
-      
+
+      // 4. 啟動錄音
+      await recording.startAsync(); // 確保錄音已成功啟動
+
       recordingRef.current = recording;
-      
-      // 顯式調用 startAsync 確保錄音開始，這是修復 "recorder not prepared" 錯誤的關鍵
-      await recording.startAsync(); 
-      console.log('Native recording started');
-    
-      // Stop after 5 seconds
+      console.log('Native recording started successfully');
+
+      // 關鍵優化 2: 僅在成功啟動後，才設置 isListening 為 true
+      setState(prev => ({ ...prev, isListening: true }));
+
+      // Stop after 5 seconds (原邏輯)
       setTimeout(async () => {
-        if (recordingRef.current) {
-            await stopNativeRecording();
+        if (recordingRef.current === recording) {
+          await stopNativeRecording();
         }
       }, 5000);
 
     } catch (error) {
       console.error('Failed to start native recording:', error);
-      setState(prev => ({ ...prev, isListening: false }));
+      // 關鍵優化 3: 任何錯誤發生時，重置 isListening 和 alwaysListening
+      setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
+      if (typeof saveSettings === 'function') {
+        await saveSettings({ alwaysListening: false });
+      }
     }
-  }, [stopNativeRecording]);
+
+  }, [stopNativeRecording, saveSettings]);
 
   const startListening = useCallback(async () => {
     try {
