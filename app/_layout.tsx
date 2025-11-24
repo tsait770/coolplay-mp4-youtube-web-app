@@ -463,11 +463,13 @@ export default function RootLayout() {
                                 <ReferralProvider>
                                   <SoundProvider>
                                     <VoiceControlProviderV2>
-                                      <SiriIntegrationProvider>
-                                        <GestureHandlerRootView style={styles.container}>
-                                          <RootLayoutNav />
-                                        </GestureHandlerRootView>
-                                      </SiriIntegrationProvider>
+                                      <VoiceControlProvider>
+                                        <SiriIntegrationProvider>
+                                          <GestureHandlerRootView style={styles.container}>
+                                            <RootLayoutNav />
+                                          </GestureHandlerRootView>
+                                        </SiriIntegrationProvider>
+                                      </VoiceControlProvider>
                                     </VoiceControlProviderV2>
                                   </SoundProvider>
                                 </ReferralProvider>

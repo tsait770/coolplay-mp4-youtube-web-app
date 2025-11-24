@@ -36,6 +36,7 @@ import Colors from "@/constants/colors";
 import DesignTokens from "@/constants/designTokens";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useVoiceControl } from "@/providers/VoiceControlProvider";
 import { useVoiceControlV2 } from "@/providers/VoiceControlProviderV2";
 import { VoiceConfirmationOverlay } from "@/components/VoiceConfirmationOverlay";
 import { useMembership } from "@/providers/MembershipProvider";
@@ -59,8 +60,9 @@ type VideoSourceType = "supported" | "extended" | "unsupported" | "unknown";
 export default function PlayerScreen() {
   const { t } = useTranslation();
   const { language } = useLanguage();
-  const voiceControl = useVoiceControlV2();
+  const voiceControl = useVoiceControl();
   const membership = useMembership();
+  const voiceState = voiceControl || { usageCount: 0 };
   const {
     isListening: isVoiceListening = false,
     startListening: startVoiceListening = () => Promise.resolve(),
@@ -68,8 +70,7 @@ export default function PlayerScreen() {
     lastCommand = null,
     isProcessing: isVoiceProcessing = false,
     alwaysListening = false,
-    toggleAlwaysListening = () => Promise.resolve(),
-    confidence = 0,
+    toggleAlwaysListening = () => Promise.resolve()
   } = voiceControl || {};
   const insets = useSafeAreaInsets();
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
