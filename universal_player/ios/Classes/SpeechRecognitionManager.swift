@@ -56,14 +56,14 @@ class SpeechRecognitionManager: NSObject {
 
                     if !speechGranted || !micGranted {
                         // 任務 7: 權限不足，提示用戶
-                        print("❌ [任務 7] 權限不足：語音辨識權限: \(authStatus.rawValue), 麥克風權限: \(micGranted)")
+                        // print("❌ [任務 7] 權限不足：語音辨識權限: \(authStatus.rawValue), 麥克風權限: \(micGranted)")
                         // 這裡可以加入更友好的 UI 提示，引導用戶到設定頁面
                     } else if authStatus == .notDetermined || AVAudioSession.sharedInstance().recordPermission == .undetermined {
                         // 雖然已經請求，但如果狀態仍為未定，可能需要進一步處理
-                        print("⚠️ [任務 7] 權限狀態未定，請檢查 Info.plist 設定。")
+                        // print("⚠️ [任務 7] 權限狀態未定，請檢查 Info.plist 設定。")
                     } else if authStatus == .restricted || authStatus == .denied || AVAudioSession.sharedInstance().recordPermission == .denied {
                         // 權限被拒絕，需要提示用戶
-                        print("❌ [任務 7] 權限被拒絕，請檢查是否為 '允許一次' 或 '不允許'。")
+                        // print("❌ [任務 7] 權限被拒絕，請檢查是否為 '允許一次' 或 '不允許'。")
                     }
 
                     completion(speechGranted && micGranted)
@@ -75,7 +75,7 @@ class SpeechRecognitionManager: NSObject {
     /// 啟動語音監聽
     func startListening(continuous: Bool = false) {
         guard !audioEngine.isRunning else {
-            print("⚠️ 語音引擎已在運行中。")
+            // print("⚠️ 語音引擎已在運行中。")
             return
         }
 
@@ -143,7 +143,7 @@ class SpeechRecognitionManager: NSObject {
                 if error != nil || isFinal {
                     // 任務 5: 紀錄 recognitionTask.error
                     if let error = error {
-                        print("❌ [任務 5] recognitionTask 錯誤: \(error.localizedDescription)")
+                        // print("❌ [任務 5] recognitionTask 錯誤: \(error.localizedDescription)")
                     }
                     
                     // 停止當前 session
@@ -151,7 +151,7 @@ class SpeechRecognitionManager: NSObject {
 
                     if self.isContinuousListening && !self.isRestarting {
                         // 任務 4: 持續監聽模式 - 任務完成或出錯後自動重啟
-                        print("🔄 [任務 4] 持續監聽模式：任務結束或出錯，正在自動重啟...")
+                        // print("🔄 [任務 4] 持續監聽模式：任務結束或出錯，正在自動重啟...")
                         self.isRestarting = true
                         // 延遲重啟以避免資源競爭
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -164,11 +164,11 @@ class SpeechRecognitionManager: NSObject {
                 }
             }
             
-            print("✅ 語音監聽啟動成功。")
+            // print("✅ 語音監聽啟動成功。")
 
         } catch {
             // 任務 5: 紀錄錯誤
-            print("❌ [任務 5] 啟動語音監聽時發生錯誤: \(error.localizedDescription)")
+            // print("❌ [任務 5] 啟動語音監聽時發生錯誤: \(error.localizedDescription)")
             stopListeningSession()
             stateUpdateHandler?(.error(error))
         }
@@ -179,7 +179,7 @@ class SpeechRecognitionManager: NSObject {
         isContinuousListening = false // 停止持續監聽模式
         stopListeningSession()
         stateUpdateHandler?(.stopped(nil))
-        print("🛑 語音監聽已手動停止。")
+        // print("🛑 語音監聽已手動停止。")
     }
 
     /// 停止當前錄音 Session (內部使用)
@@ -197,7 +197,7 @@ class SpeechRecognitionManager: NSObject {
             try AVAudioSession.sharedInstance().setActive(false)
         } catch {
             // 任務 5: 紀錄 audioSession 中斷通知 (deactivation error)
-            print("❌ [任務 5] 停止 AVAudioSession 錯誤: \(error.localizedDescription)")
+            // print("❌ [任務 5] 停止 AVAudioSession 錯誤: \(error.localizedDescription)")
         }
     }
 }
@@ -209,9 +209,9 @@ extension SpeechRecognitionManager: SFSpeechRecognizerDelegate {
     // 任務 6: 檢查辨識器可用性 (間接檢查網路連線)
     func speechRecognizer(_ speechRecognizer: SFSpeechRecognizer, availabilityDidChange available: Bool) {
         if available {
-            print("✅ [任務 6] 語音辨識器可用。")
+            // print("✅ [任務 6] 語音辨識器可用。")
         } else {
-            print("❌ [任務 6] 語音辨識器不可用，請檢查網路連線 (api.speech.apple.com)。")
+            // print("❌ [任務 6] 語音辨識器不可用，請檢查網路連線 (api.speech.apple.com)。")
             // 這裡可以加入自動停止或提示用戶的邏輯
         }
     }
@@ -240,7 +240,7 @@ extension SpeechRecognitionManager {
         switch type {
         case .began:
             // 任務 5: 紀錄 audioSession 中斷通知 (began)
-            print("⚠️ [任務 5] AVAudioSession 中斷開始 (例如：來電)。")
+            // print("⚠️ [任務 5] AVAudioSession 中斷開始 (例如：來電)。")
             // 中斷開始時，停止當前監聽
             stopListeningSession()
             stateUpdateHandler?(.stopped(nil))
@@ -250,11 +250,11 @@ extension SpeechRecognitionManager {
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
             
             // 任務 5: 紀錄 audioSession 中斷通知 (ended)
-            print("✅ [任務 5] AVAudioSession 中斷結束。")
+            // print("✅ [任務 5] AVAudioSession 中斷結束。")
 
             if options.contains(.shouldResume) {
                 // 嘗試重新啟動監聽 (如果之前是持續監聽模式)
-                print("🔄 嘗試恢復監聽...")
+                // print("🔄 嘗試恢復監聽...")
                 // 這裡需要判斷是否需要自動恢復，如果用戶手動停止則不恢復
                 // 為了簡潔，這裡不自動恢復，讓用戶手動點擊
             }

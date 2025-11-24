@@ -8,6 +8,7 @@ public class UniversalPlayerPlugin: NSObject, FlutterPlugin {
   private var methodChannel: FlutterMethodChannel?
   private var stateChannel: FlutterEventChannel?
   private var positionChannel: FlutterEventChannel?
+  private var speechResultChannel: FlutterEventChannel?
   private var backend: AVBackend?
   private var speechManager: SpeechRecognitionManager?
 
@@ -17,9 +18,21 @@ public class UniversalPlayerPlugin: NSObject, FlutterPlugin {
     registrar.addMethodCallDelegate(instance, channel: instance.methodChannel!)
     instance.stateChannel = FlutterEventChannel(name: "universal_player/state", binaryMessenger: registrar.messenger())
     instance.positionChannel = FlutterEventChannel(name: "universal_player/position", binaryMessenger: registrar.messenger())
+    instance.speechResultChannel = FlutterEventChannel(name: "universal_player/speech_results", binaryMessenger: registrar.messenger())
     instance.backend = AVBackend(stateChannel: instance.stateChannel!, positionChannel: instance.positionChannel!)
     instance.speechManager = SpeechRecognitionManager()
     instance.speechManager?.registerForAudioSessionNotifications()
+    instance.speechResultChannel?.setStreamHandler(SpeechResultStreamHandler(assign: { sink in
+        instance.speechManager?.resultUpdateHandler = { text, isFinal in
+            sink?(["text": text, "final": isFinal])
+        }
+        instance.speechManager?.stateUpdateHandler = { state in
+            // 可以根據需要發送狀態更新，例如錯誤
+            if case .error(let error) = state {
+                sink?(FlutterError(code: "SPEECH_ERROR", message: error.localizedDescription, details: nil))
+            }
+        }
+    }))
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -33,6 +46,11 @@ public class UniversalPlayerPlugin: NSObject, FlutterPlugin {
     case "setPreferredPeakBitRate": if let bps = call.arguments as? Double { backend?.setPreferredPeakBitRate(bps: bps) }; result(nil)
     case "dispose": backend?.dispose(); result(nil)
     case "startListening":
+        // 檢查是否已設置 resultUpdateHandler，避免重複設置
+        if speechManager?.resultUpdateHandler == nil {
+            // 如果沒有設置，則使用一個空的處理器，避免 crash
+            speechManager?.resultUpdateHandler = { _, _ in }
+        }
         guard let args = call.arguments as? [String: Any], let continuous = args["continuous"] as? Bool else {
             result(FlutterError(code: "INVALID_ARGUMENT", message: "Missing 'continuous' argument", details: nil))
             return
@@ -203,4 +221,12 @@ class AVPositionStreamHandler: NSObject, FlutterStreamHandler {
 
 extension CMTime {
   init(milliseconds: Int) { self = CMTime(value: CMTimeValue(milliseconds), timescale: 1000) }
+}
+
+// Separate handler to route speech result events sink
+class SpeechResultStreamHandler: NSObject, FlutterStreamHandler {
+  private let assign: (FlutterEventSink?) -> Void
+  init(assign: @escaping (FlutterEventSink?) -> Void) { self.assign = assign }
+  func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? { assign(events); return nil }
+  func onCancel(withArguments arguments: Any?) -> FlutterError? { assign(nil); return nil }
 }
