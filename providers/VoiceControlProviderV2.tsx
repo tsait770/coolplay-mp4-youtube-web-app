@@ -53,6 +53,8 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
 
   const asrAdapter = useRef<ASRAdapter | null>(null);
   const commandParser = useRef<CommandParser | null>(null);
+  const isStartingRef = useRef<boolean>(false);
+  const isStoppingRef = useRef<boolean>(false);
   const keepAliveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const nativeInterimSub = useRef<any>(null);
   const nativeFinalSub = useRef<any>(null);
@@ -274,13 +276,31 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
 
   const startListening = useCallback(async () => {
     try {
-      if (state.isListening) {
+      if (state.isListening || isStartingRef.current || isStoppingRef.current) {
         console.log('[VoiceControlV2] Already listening');
         return;
       }
 
       console.log('[VoiceControlV2] Starting listening...');
+      isStartingRef.current = true;
       if (Platform.OS !== 'web' && isNativeAvailable()) {
+        try {
+          const perm = await Audio.getPermissionsAsync();
+          if (!perm.granted) {
+            const req = await Audio.requestPermissionsAsync();
+            if (!req.granted) {
+              console.warn('[VoiceControlV2] Microphone permission denied');
+              setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-denied', message: 'Microphone permission denied' } }));
+              }
+              isStartingRef.current = false;
+              return;
+            }
+          }
+        } catch (permError) {
+          console.error('[VoiceControlV2] Permission error:', permError);
+        }
         // iOS 初始化：確保音訊權限和背景模式
         try {
           await BackgroundListeningManager.getInstance().start('continuous');
@@ -288,6 +308,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         } catch (error) {
           console.error('[VoiceControlV2] Failed to enable background audio:', error);
           setState(prev => ({ ...prev, isListening: false }));
+          isStartingRef.current = false;
           return;
         }
         
@@ -302,6 +323,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         });
         startContinuousListen();
         setState(prev => ({ ...prev, isListening: true }));
+        isStartingRef.current = false;
         return;
       }
 
@@ -355,12 +377,16 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
     } catch (error) {
       console.error('[VoiceControlV2] Failed to start listening:', error);
       setState(prev => ({ ...prev, isListening: false }));
+    } finally {
+      isStartingRef.current = false;
     }
   }, [state.isListening, state.alwaysListening, language, handleASRResult, handleASRError, handleASREnd]);
 
   const stopListening = useCallback(async () => {
     try {
       console.log('[VoiceControlV2] Stopping listening...');
+      if (isStoppingRef.current) return;
+      isStoppingRef.current = true;
 
       if (keepAliveInterval.current) {
         clearInterval(keepAliveInterval.current);
@@ -387,6 +413,8 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
       setState(prev => ({ ...prev, isListening: false }));
     } catch (error) {
       console.error('[VoiceControlV2] Failed to stop listening:', error);
+    } finally {
+      isStoppingRef.current = false;
     }
   }, []);
 

@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 
 export interface ASRResult {
   text: string;
@@ -481,6 +483,147 @@ export class MediaRecorderASRAdapter extends ASRAdapter {
   }
 }
 
+export class ExpoRecordingASRAdapter extends ASRAdapter {
+  private recording: Audio.Recording | null = null;
+  private recordingTimeout: ReturnType<typeof setTimeout> | null = null;
+  private transcriptionEndpoint: string = 'https://toolkit.rork.com/stt/transcribe/';
+
+  isAvailable(): boolean {
+    return Platform.OS !== 'web';
+  }
+
+  async start(): Promise<void> {
+    if (!this.isAvailable()) {
+      throw new Error('Expo Recording is not available');
+    }
+
+    if (this.isListening) {
+      console.log('[ExpoRecordingASR] Already listening');
+      return;
+    }
+
+    try {
+      const perm = await Audio.getPermissionsAsync();
+      if (!perm.granted) {
+        const req = await Audio.requestPermissionsAsync();
+        if (!req.granted) {
+          this.emit({ type: 'error', data: { code: 'not-allowed', message: 'Microphone permission denied' } });
+          throw new Error('Microphone permission denied');
+        }
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
+      });
+
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.wav',
+          outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+      });
+
+      await recording.startAsync();
+      this.recording = recording;
+      this.isListening = true;
+      this.emit({ type: 'start' });
+      this.emit({ type: 'audio-start' });
+
+      this.recordingTimeout = setTimeout(async () => {
+        try {
+          if (this.recording) {
+            await this.recording.stopAndUnloadAsync();
+            const uri = this.recording.getURI() || '';
+            await this.transcribeAudio(uri);
+          }
+        } catch (e) {
+          console.error('[ExpoRecordingASR] Stop/unload failed:', e);
+        } finally {
+          this.cleanup();
+          this.emit({ type: 'end' });
+          if (this.continuous) {
+            setTimeout(() => this.start(), 100);
+          }
+        }
+      }, 5000);
+
+    } catch (error: any) {
+      console.error('[ExpoRecordingASR] Failed to start:', error);
+      let code: ASRError['code'] = 'unknown';
+      if (error?.message?.includes('denied')) code = 'not-allowed';
+      this.emit({ type: 'error', data: { code, message: error?.message || 'Failed to start recording' } });
+      throw error;
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.recordingTimeout) {
+      clearTimeout(this.recordingTimeout);
+      this.recordingTimeout = null;
+    }
+    try {
+      if (this.recording) {
+        await this.recording.stopAndUnloadAsync();
+      }
+    } catch {}
+    this.cleanup();
+    this.isListening = false;
+  }
+
+  private cleanup(): void {
+    this.recording = null;
+  }
+
+  private async transcribeAudio(uri: string): Promise<void> {
+    if (!uri) return;
+    try {
+      const form = new FormData();
+      form.append('audio', { uri, name: Platform.OS === 'ios' ? 'recording.wav' : 'recording.m4a', type: Platform.OS === 'ios' ? 'audio/wav' : 'audio/m4a' } as any);
+      form.append('language', this.getLanguage());
+
+      const response = await fetch(this.transcriptionEndpoint, { method: 'POST', body: form });
+      if (response.ok) {
+        const result = await response.json();
+        if (result.text && result.text.trim().length > 0) {
+          this.emit({ type: 'result', data: { text: result.text, confidence: 0.85, isFinal: true } });
+        } else {
+          this.emit({ type: 'error', data: { code: 'no-speech', message: 'No speech detected' } });
+        }
+      } else {
+        this.emit({ type: 'error', data: { code: 'network', message: `Transcription failed: ${response.status}` } });
+      }
+    } catch (error) {
+      console.error('[ExpoRecordingASR] Transcription failed:', error);
+      this.emit({ type: 'error', data: { code: 'network', message: 'Network error during transcription' } });
+    }
+  }
+
+  dispose(): void {
+    this.stop();
+    super.dispose();
+  }
+}
+
 export function createASRAdapter(options: Partial<ASRAdapterOptions> = {}): ASRAdapter {
   if (Platform.OS === 'web') {
     const webSpeech = new WebSpeechASRAdapter(options);
@@ -495,10 +638,10 @@ export function createASRAdapter(options: Partial<ASRAdapterOptions> = {}): ASRA
       return mediaRecorder;
     }
   } else {
-    const mediaRecorder = new MediaRecorderASRAdapter(options);
-    if (mediaRecorder.isAvailable()) {
-      console.log('[ASRAdapter] Using MediaRecorder for mobile');
-      return mediaRecorder;
+    const expoRecorder = new ExpoRecordingASRAdapter(options);
+    if (expoRecorder.isAvailable()) {
+      console.log('[ASRAdapter] Using ExpoRecording for mobile');
+      return expoRecorder;
     }
   }
 

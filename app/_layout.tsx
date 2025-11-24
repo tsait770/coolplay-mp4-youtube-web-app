@@ -14,8 +14,7 @@ import { CategoryProvider } from "@/providers/CategoryProvider";
 import { ReferralProvider, useReferral } from "@/providers/ReferralProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { StripeProvider } from "@/providers/StripeProvider";
-import { VoiceControlProvider, useVoiceControl } from "@/providers/VoiceControlProvider";
-import { VoiceControlProviderV2 } from "@/providers/VoiceControlProviderV2";
+import { VoiceControlProviderV2, useVoiceControlV2 } from "@/providers/VoiceControlProviderV2";
 import { SiriIntegrationProvider, useSiriIntegration } from "@/providers/SiriIntegrationProvider";
 import { StorageProvider, useStorage } from "@/providers/StorageProvider";
 import ReferralCodeModal from "@/components/ReferralCodeModal";
@@ -54,8 +53,8 @@ class ErrorBoundary extends Component<
     this.setState({ errorInfo: errorInfo?.componentStack || 'No stack info' });
     
     // Log to a global error handler if available
-    if (typeof (global as any).__handleAppError === 'function') {
-      (global as any).__handleAppError(error, errorInfo);
+    if (typeof (globalThis as any).__handleAppError === 'function') {
+      (globalThis as any).__handleAppError(error, errorInfo);
     }
   }
 
@@ -114,7 +113,7 @@ class ErrorBoundary extends Component<
 function RootLayoutNav() {
   const storage = useStorage();
   const referralContext = useReferral();
-  const voice = useVoiceControl();
+  const voice = useVoiceControlV2();
   const siri = useSiriIntegration();
   const [showConsentModal, setShowConsentModal] = useState<boolean>(false);
   const [showReferralModal, setShowReferralModal] = useState<boolean>(false);
@@ -341,7 +340,7 @@ export default function RootLayout() {
     };
     
     // Set up global error handler
-    (global as any).__handleAppError = handleGlobalError;
+    (globalThis as any).__handleAppError = handleGlobalError;
     
     const initialize = async () => {
       try {
