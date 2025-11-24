@@ -184,14 +184,14 @@ export default function MediaFormatTest() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.primary.background,
+    backgroundColor: Colors.primary.bg,
   },
   listContainer: {
     flex: 1,
   },
   header: {
     padding: 24,
-    backgroundColor: Colors.primary.backgroundSecondary,
+    backgroundColor: Colors.primary.bgSecondary,
   },
   headerTitle: {
     fontSize: 28,
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   mediaCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.primary.backgroundSecondary,
+    backgroundColor: Colors.primary.bgSecondary,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,

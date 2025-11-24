@@ -37,29 +37,35 @@ export default function AnimationsDemo() {
           
           <View style={styles.buttonGroup}>
             <PulseButton 
+              title="脈衝按鈕"
               onPress={() => console.log('Pulse pressed')}
               testID="pulse-button"
-            >
-              <Text>脈衝按鈕</Text>
-            </PulseButton>
+              size="md"
+              variant="primary"
+              fullWidth
+            />
           </View>
 
           <View style={styles.buttonGroup}>
             <GradientButton 
+              title="漸變按鈕"
               onPress={() => console.log('Gradient pressed')}
               testID="gradient-button"
-            >
-              <Text>漸變按鈕</Text>
-            </GradientButton>
+              size="md"
+              variant="primary"
+              fullWidth
+            />
           </View>
 
           <View style={styles.buttonGroup}>
             <RippleButton 
+              title="水波紋按鈕"
               onPress={() => console.log('Ripple pressed')}
               testID="ripple-button"
-            >
-              <Text>水波紋按鈕</Text>
-            </RippleButton>
+              size="md"
+              variant="success"
+              fullWidth
+            />
           </View>
         </View>
 
@@ -69,23 +75,22 @@ export default function AnimationsDemo() {
           
           <View style={styles.cardGroup}>
             <HoverCard 
+              title="懸停卡片"
+              description="點擊時會放大並增加陰影效果，提供視覺回饋"
               onPress={() => console.log('Hover card pressed')}
               testID="hover-card"
-            >
-              <Text style={styles.cardTitle}>懸停卡片</Text>
-              <Text style={styles.cardText}>
-                點擊時會放大並增加陰影效果，提供視覺回饋
-              </Text>
-            </HoverCard>
+              variant="default"
+              index={0}
+            />
           </View>
 
           <View style={styles.cardGroup}>
-            <GlowCard testID="glow-card">
-              <Text style={styles.cardTitle}>發光卡片</Text>
-              <Text style={styles.cardText}>
-                持續的發光動畫效果，吸引用戶注意
-              </Text>
-            </GlowCard>
+            <GlowCard
+              title="發光卡片"
+              description="持續的發光動畫效果，吸引用戶注意"
+              testID="glow-card"
+              variant="featured"
+            />
           </View>
         </View>
 
@@ -95,12 +100,12 @@ export default function AnimationsDemo() {
           
           <View style={styles.loaderGroup}>
             <View style={styles.loaderItem}>
-              <SpinLoader size={50} color="#667eea" />
+              <SpinLoader size="md" color="#667eea" />
               <Text style={styles.loaderLabel}>旋轉載入</Text>
             </View>
 
             <View style={styles.loaderItem}>
-              <DotsLoader size={14} color="#764ba2" />
+              <DotsLoader size="md" color="#764ba2" />
               <Text style={styles.loaderLabel}>點點載入</Text>
             </View>
           </View>
@@ -111,22 +116,13 @@ export default function AnimationsDemo() {
           <Text style={styles.sectionDesc}>多種動畫效果的組合應用</Text>
           
           <HoverCard 
+            title="完整功能卡片"
+            description="這是一個結合多種動畫效果的卡片示例，包含懸停效果和按鈕動畫"
             onPress={() => console.log('Combined card pressed')}
             testID="combined-card"
-          >
-            <Text style={styles.cardTitle}>完整功能卡片</Text>
-            <Text style={styles.cardText}>
-              這是一個結合多種動畫效果的卡片示例，包含懸停效果和按鈕動畫
-            </Text>
-            <View style={styles.cardActions}>
-              <RippleButton 
-                onPress={() => console.log('Action 1')}
-                testID="action-button"
-              >
-                <Text>執行操作</Text>
-              </RippleButton>
-            </View>
-          </HoverCard>
+            variant="featured"
+            index={1}
+          />
         </View>
 
         <View style={styles.infoBox}>
