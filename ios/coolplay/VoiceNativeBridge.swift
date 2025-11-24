@@ -17,8 +17,10 @@ class VoiceNative: RCTEventEmitter {
   func startListening() {
     do {
       try manager.setupAudioSession()
-      try manager.startListening(emitter: { text in
+      try manager.startListening(finalEmitter: { text in
         self.sendEvent(withName: "onFinal", body: ["text": text, "confidence": 0.85])
+      }, interimEmitter: { text in
+        self.sendEvent(withName: "onInterim", body: ["text": text])
       })
     } catch {
       self.sendEvent(withName: "onError", body: ["code": "audio-error", "message": "failed to start"])
@@ -30,4 +32,3 @@ class VoiceNative: RCTEventEmitter {
     manager.stopListening()
   }
 }
-

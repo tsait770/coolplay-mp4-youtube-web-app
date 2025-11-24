@@ -5,6 +5,7 @@ class VoiceManager: NSObject {
   let audioEngine = AVAudioEngine()
   let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-TW"))
   var recognitionTask: SFSpeechRecognitionTask?
+  var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
 
   func setupAudioSession() throws {
     let audioSession = AVAudioSession.sharedInstance()
@@ -18,7 +19,7 @@ class VoiceManager: NSObject {
     logEvent(event: "audioSession_initialized")
   }
 
-  func startListening(emitter: ((String) -> Void)?) throws {
+  func startListening(finalEmitter: ((String) -> Void)?, interimEmitter: ((String) -> Void)?) throws {
     audioEngine.stop()
     audioEngine.reset()
 
@@ -40,23 +41,28 @@ class VoiceManager: NSObject {
     let inputNode = audioEngine.inputNode
     let audioFormat = inputNode.outputFormat(forBus: 0)
     inputNode.removeTap(onBus: 0)
-    inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { buffer, _ in }
+
+    let request = SFSpeechAudioBufferRecognitionRequest()
+    request.shouldReportPartialResults = true
+    self.recognitionRequest = request
+
+    inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { buffer, _ in
+      request.append(buffer)
+    }
 
     audioEngine.prepare()
     try audioEngine.start()
     logEvent(event: "audioEngine_started")
 
-    let recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-    recognitionRequest.shouldReportPartialResults = true
-
-    self.recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
+    self.recognitionTask = speechRecognizer?.recognitionTask(with: request) { result, error in
       if let result = result {
         let transcript = result.bestTranscription.formattedString
         if result.isFinal {
           self.logEvent(event: "final_result", detail: transcript)
-          emitter?(transcript)
+          finalEmitter?(transcript)
         } else {
           self.logEvent(event: "partial_result", detail: transcript)
+          interimEmitter?(transcript)
         }
       }
       if let error = error {
@@ -71,6 +77,7 @@ class VoiceManager: NSObject {
     audioEngine.inputNode.removeTap(onBus: 0)
     recognitionTask?.cancel()
     recognitionTask = nil
+    recognitionRequest = nil
     logEvent(event: "listening_stopped")
   }
 
@@ -88,4 +95,3 @@ class VoiceManager: NSObject {
     }
   }
 }
-
