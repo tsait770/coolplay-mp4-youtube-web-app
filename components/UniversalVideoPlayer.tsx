@@ -40,7 +40,7 @@ export interface UniversalVideoPlayerProps {
   onPlaybackStart?: () => void;
   onPlaybackEnd?: () => void;
   autoPlay?: boolean;
-  style?: any;
+  style?: import('react-native').StyleProp<import('react-native').ViewStyle>;
   onAgeVerificationRequired?: () => void;
   loadTimeout?: number;
   maxRetries?: number;

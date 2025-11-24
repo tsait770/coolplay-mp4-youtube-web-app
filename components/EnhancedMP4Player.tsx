@@ -36,13 +36,13 @@ interface EnhancedMP4PlayerProps {
   onPlaybackStart?: () => void;
   onPlaybackEnd?: () => void;
   autoPlay?: boolean;
-  style?: any;
+  style?: import('react-native').StyleProp<import('react-native').ViewStyle>;
   onBackPress?: () => void;
 }
 
 type PlaybackSpeed = 0.5 | 1.0 | 1.25 | 1.5 | 1.75 | 2.0;
 
-export default function EnhancedMP4Player({
+const EnhancedMP4Player = React.forwardRef<any, EnhancedMP4PlayerProps>(function EnhancedMP4Player({
   url,
   onError,
   onPlaybackStart,
@@ -50,7 +50,7 @@ export default function EnhancedMP4Player({
   autoPlay = false,
   style,
   onBackPress,
-}: EnhancedMP4PlayerProps) {
+}: EnhancedMP4PlayerProps, _ref) {
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
@@ -526,7 +526,9 @@ export default function EnhancedMP4Player({
       {renderAbLoopMenu()}
     </View>
   );
-}
+});
+
+export default EnhancedMP4Player;
 
 const styles = StyleSheet.create({
   container: {

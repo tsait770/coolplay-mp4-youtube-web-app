@@ -1,4 +1,5 @@
 import app from "./hono";
+declare const Bun: any;
 
 const port = process.env.PORT || 3000;
 
