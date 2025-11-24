@@ -4,6 +4,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useStorage, safeJsonParse } from '@/providers/StorageProvider';
 import { createASRAdapter, ASRAdapter, ASREvent, ASRResult, ASRError } from '@/lib/voice/ASRAdapter';
+import { isNativeAvailable, startContinuousListen, stopContinuousListen, onInterim, onFinal, onError } from '@/lib/voice/VoiceBridge';
 import { CommandParser, ParsedCommand, VoiceCommand } from '@/lib/voice/CommandParser';
 import { globalPlayerManager, VoiceCommandPayload } from '@/lib/player/GlobalPlayerManager';
 import voiceCommandsData from '@/constants/voiceCommands.json';
@@ -52,6 +53,9 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
   const asrAdapter = useRef<ASRAdapter | null>(null);
   const commandParser = useRef<CommandParser | null>(null);
   const keepAliveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nativeInterimSub = useRef<any>(null);
+  const nativeFinalSub = useRef<any>(null);
+  const nativeErrorSub = useRef<any>(null);
 
   useEffect(() => {
     console.log('[VoiceControlV2] Initializing command parser...');
@@ -267,6 +271,20 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
       }
 
       console.log('[VoiceControlV2] Starting listening...');
+      if (Platform.OS !== 'web' && isNativeAvailable()) {
+        nativeInterimSub.current = onInterim((text) => {
+          handleASRResult({ text, confidence: 0.5, isFinal: false });
+        });
+        nativeFinalSub.current = onFinal((text, confidence) => {
+          handleASRResult({ text, confidence: confidence ?? 0.85, isFinal: true });
+        });
+        nativeErrorSub.current = onError((code, message) => {
+          handleASRError({ code: code as any, message });
+        });
+        startContinuousListen();
+        setState(prev => ({ ...prev, isListening: true }));
+        return;
+      }
 
       if (!asrAdapter.current) {
         asrAdapter.current = createASRAdapter({
@@ -330,7 +348,12 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         keepAliveInterval.current = null;
       }
 
-      if (asrAdapter.current) {
+      if (Platform.OS !== 'web' && isNativeAvailable()) {
+        stopContinuousListen();
+        if (nativeInterimSub.current) { try { nativeInterimSub.current.remove(); } catch {} nativeInterimSub.current = null; }
+        if (nativeFinalSub.current) { try { nativeFinalSub.current.remove(); } catch {} nativeFinalSub.current = null; }
+        if (nativeErrorSub.current) { try { nativeErrorSub.current.remove(); } catch {} nativeErrorSub.current = null; }
+      } else if (asrAdapter.current) {
         await asrAdapter.current.stop();
       }
 
