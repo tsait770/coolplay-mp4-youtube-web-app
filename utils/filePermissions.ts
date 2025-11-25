@@ -325,7 +325,7 @@ class FilePermissionsManager {
     accessible: boolean;
     exists: boolean;
     readable: boolean;
-    size: number;
+    size?: number;
     errorMessage?: string;
   }> {
     const normalized = this.normalizeUri(uri);
@@ -335,7 +335,6 @@ class FilePermissionsManager {
         accessible: false,
         exists: false,
         readable: false,
-        size: 0,
         errorMessage: normalized.errorMessage || 'Invalid URI',
       };
     }
@@ -345,7 +344,6 @@ class FilePermissionsManager {
         accessible: true,
         exists: true,
         readable: true,
-        size: 0,
       };
     }
 
@@ -356,7 +354,6 @@ class FilePermissionsManager {
           accessible: false,
           exists: false,
           readable: false,
-        size: 0,
           errorMessage: 'Storage permission not granted',
         };
       }
@@ -377,7 +374,6 @@ class FilePermissionsManager {
         accessible: false,
         exists: false,
         readable: false,
-        size: 0,
         errorMessage: error instanceof Error ? error.message : String(error),
       };
     }

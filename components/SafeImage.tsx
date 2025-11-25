@@ -1,12 +1,10 @@
 import React from 'react';
 import { Image as ExpoImage, ImageProps as ExpoImageProps } from 'expo-image';
-import { View, StyleSheet, ImageStyle, StyleProp } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
-// 修正 SafeImageProps 的定義，明確 style 屬性為 StyleProp<ImageStyle>
-interface SafeImageProps extends Omit<ExpoImageProps, 'style'> {
+type SafeImageProps = ExpoImageProps & {
   fallbackColor?: string;
-  style?: StyleProp<ImageStyle>; // 確保 style 屬性使用 ImageStyle
-}
+};
 
 export function SafeImage({ source, fallbackColor = '#1a1a1a', style, ...props }: SafeImageProps) {
   // Comprehensive source validation

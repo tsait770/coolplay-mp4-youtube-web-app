@@ -352,7 +352,7 @@ export default function VideoTestScreen() {
             <UniversalVideoPlayer 
               url={currentTest.url}
               onError={(error) => console.log('Player error:', error)}
-              // 移除或替換為 UniversalVideoPlayer 支援的屬性，例如 onReady 或 onPlaybackStateChange
+              onLoad={() => console.log('Player loaded')}
             />
             <Text style={styles.currentTestText}>
               Testing: {currentTest.name}
