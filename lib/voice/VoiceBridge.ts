@@ -7,13 +7,18 @@ export function isNativeAvailable(): boolean {
   return Platform.OS !== 'web' && !!Native
 }
 
+// 更新 startContinuousListen 以符合 Swift 端的 startContinuousListening 函數
 export function startContinuousListen(): void {
   if (!Native) return
-  Native.startListening()
+  // Swift 端的 startContinuousListening 函數現在會處理所有的初始化和權限請求
+  // RN 端只需要呼叫它
+  Native.startContinuousListening()
 }
 
+// 保持 stopContinuousListen 不變
 export function stopContinuousListen(): void {
   if (!Native) return
+  // Swift 端的 stopListening 預設會 de-activate session
   Native.stopListening()
 }
 
@@ -41,3 +46,10 @@ export function onError(callback: (code: string, message: string) => void) {
   })
 }
 
+// 新增 onStatusChange 監聽器 (Issue #6)
+export function onStatusChange(callback: (status: string) => void) {
+  if (!emitter) return { remove: () => {} }
+  return emitter.addListener('onStatusChange', (data: { status: string }) => {
+    if (data && typeof data.status === 'string') callback(data.status)
+  })
+}

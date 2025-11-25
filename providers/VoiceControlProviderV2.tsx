@@ -4,9 +4,9 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useStorage, safeJsonParse } from '@/providers/StorageProvider';
 import { createASRAdapter, ASRAdapter, ASREvent, ASRResult, ASRError } from '@/lib/voice/ASRAdapter';
-import { isNativeAvailable, startContinuousListen, stopContinuousListen, onInterim, onFinal, onError } from '@/lib/voice/VoiceBridge';
+import { isNativeAvailable, startContinuousListen, stopContinuousListen, onInterim, onFinal, onError, onStatusChange } from '@/lib/voice/VoiceBridge';
 import { CommandParser, ParsedCommand, VoiceCommand } from '@/lib/voice/CommandParser';
-import { BackgroundListeningManager } from '@/lib/voice/BackgroundListeningManager';
+// import { BackgroundListeningManager } from '@/lib/voice/BackgroundListeningManager'; // 權限和 Session 處理已移至原生層
 import { globalPlayerManager, VoiceCommandPayload } from '@/lib/player/GlobalPlayerManager';
 import voiceCommandsData from '@/constants/voiceCommands.json';
 
@@ -57,6 +57,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
   const isStoppingRef = useRef<boolean>(false);
   const keepAliveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const nativeInterimSub = useRef<any>(null);
+  const nativeStatusSub = useRef<any>(null);
   const nativeFinalSub = useRef<any>(null);
   const nativeErrorSub = useRef<any>(null);
 
@@ -285,32 +286,14 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
       isStartingRef.current = true;
       if (Platform.OS !== 'web' && isNativeAvailable()) {
         try {
-          const perm = await Audio.getPermissionsAsync();
-          if (!perm.granted) {
-            const req = await Audio.requestPermissionsAsync();
-            if (!req.granted) {
-              console.warn('[VoiceControlV2] Microphone permission denied');
-              setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-denied', message: 'Microphone permission denied' } }));
-              }
-              isStartingRef.current = false;
+          // 權限請求已移至原生層 VoiceManager.swift   isStartingRef.current = false;
               return;
             }
           }
         } catch (permError) {
           console.error('[VoiceControlV2] Permission error:', permError);
         }
-        // iOS 初始化：確保音訊權限和背景模式
-        try {
-          await BackgroundListeningManager.getInstance().start('continuous');
-          console.log('[VoiceControlV2] Background audio mode enabled');
-        } catch (error) {
-          console.error('[VoiceControlV2] Failed to enable background audio:', error);
-          setState(prev => ({ ...prev, isListening: false }));
-          isStartingRef.current = false;
-          return;
-        }
+        /// 背景模式啟用已移至原生層 VoiceManager.swift
         
         nativeInterimSub.current = onInterim((text) => {
           handleASRResult({ text, confidence: 0.5, isFinal: false });
@@ -321,8 +304,19 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         nativeErrorSub.current = onError((code, message) => {
           handleASRError({ code: code as any, message });
         });
+        
+        // 新增狀態監聽
+        nativeStatusSub.current = onStatusChange((status) => {
+          console.log('[VoiceControlV2] Native Status Change:', status);
+          if (status === 'listening') {
+            setState(prev => ({ ...prev, isListening: true }));
+          } else if (status === 'idle' || status.startsWith('failed')) {
+            setState(prev => ({ ...prev, isListening: false }));
+          }
+        });
+        
         startContinuousListen();
-        setState(prev => ({ ...prev, isListening: true }));
+        // 狀態更新將由 nativeStatusSub 處理
         isStartingRef.current = false;
         return;
       }
@@ -398,14 +392,9 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         if (nativeInterimSub.current) { try { nativeInterimSub.current.remove(); } catch {} nativeInterimSub.current = null; }
         if (nativeFinalSub.current) { try { nativeFinalSub.current.remove(); } catch {} nativeFinalSub.current = null; }
         if (nativeErrorSub.current) { try { nativeErrorSub.current.remove(); } catch {} nativeErrorSub.current = null; }
+        if (nativeStatusSub.current) { try { nativeStatusSub.current.remove(); } catch {} nativeStatusSub.current = null; }
         
-        // 停止背景音訊模式
-        try {
-          await BackgroundListeningManager.getInstance().stop();
-          console.log('[VoiceControlV2] Background audio mode disabled');
-        } catch (error) {
-          console.error('[VoiceControlV2] Failed to disable background audio:', error);
-        }
+// 背景模式停用已移至原生層 VoiceManager.swift
       } else if (asrAdapter.current) {
         await asrAdapter.current.stop();
       }
