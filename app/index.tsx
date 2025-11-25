@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import '../lib/polyfills'; // MUST be the first import to ensure CustomEvent is defined
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
