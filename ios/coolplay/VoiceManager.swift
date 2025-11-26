@@ -6,6 +6,8 @@ class VoiceManager: NSObject {
   let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "zh-TW"))
   var recognitionTask: SFSpeechRecognitionTask?
   var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+  var isContinuous: Bool = true
+  var lastEventTs: TimeInterval = 0
 
   func setupAudioSession() throws {
     let audioSession = AVAudioSession.sharedInstance()
@@ -14,8 +16,8 @@ class VoiceManager: NSObject {
         self.logEvent(event: "microphone_permission_denied")
       }
     }
-    try audioSession.setCategory(.playAndRecord, mode: .spokenAudio, options: [.mixWithOthers, .allowBluetooth, .defaultToSpeaker])
-    try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+    try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.duckOthers, .allowBluetooth, .defaultToSpeaker])
+    try audioSession.setActive(true)
     logEvent(event: "audioSession_initialized")
   }
 
@@ -60,13 +62,21 @@ class VoiceManager: NSObject {
         if result.isFinal {
           self.logEvent(event: "final_result", detail: transcript)
           finalEmitter?(transcript)
+          self.lastEventTs = Date().timeIntervalSince1970
+          if self.isContinuous {
+            self.restartRecognition(finalEmitter: finalEmitter, interimEmitter: interimEmitter)
+          }
         } else {
           self.logEvent(event: "partial_result", detail: transcript)
           interimEmitter?(transcript)
+          self.lastEventTs = Date().timeIntervalSince1970
         }
       }
       if let error = error {
         self.logEvent(event: "recognition_error", detail: error.localizedDescription)
+        if self.isContinuous {
+          self.restartRecognition(finalEmitter: finalEmitter, interimEmitter: interimEmitter)
+        }
       }
     }
     logEvent(event: "recognitionTask_started")
@@ -78,8 +88,53 @@ class VoiceManager: NSObject {
     recognitionTask?.cancel()
     recognitionTask = nil
     recognitionRequest = nil
+    do { try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) } catch {}
     logEvent(event: "listening_stopped")
   }
+
+  private func restartRecognition(finalEmitter: ((String) -> Void)?, interimEmitter: ((String) -> Void)?) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+      do {
+        self.stopListening()
+        try self.setupAudioSession()
+        try self.startListening(finalEmitter: finalEmitter, interimEmitter: interimEmitter)
+        self.logEvent(event: "recognition_restarted")
+      } catch {
+        self.logEvent(event: "restart_failed", detail: String(describing: error))
+      }
+    }
+  }
+
+  @objc func handleInterruption(_ notification: Notification) {
+    guard let userInfo = notification.userInfo,
+          let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+    switch type {
+    case .began:
+      stopListening()
+    case .ended:
+      if isContinuous {
+        do {
+          try setupAudioSession()
+          try startListening(finalEmitter: nil, interimEmitter: nil)
+        } catch {}
+      }
+    @unknown default:
+      break
+    }
+  }
+
+  @objc func handleRouteChange(_ notification: Notification) {
+    if isContinuous {
+      restartRecognition(finalEmitter: nil, interimEmitter: nil)
+    }
+  }
+
+  func registerNotifications() {
+    NotificationCenter.default.addObserver(self, selector: #selector(handleInterruption(_:)), name: AVAudioSession.interruptionNotification, object: nil)
+    NotificationCenter.default.addObserver(self, selector: #selector(handleRouteChange(_:)), name: AVAudioSession.routeChangeNotification, object: nil)
+  }
+}
 
   private func logEvent(event: String, detail: String = "") {
     let log: [String: Any] = [

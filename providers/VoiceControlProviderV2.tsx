@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
+import { Audio } from 'expo-av';
 import createContextHook from '@nkzw/create-context-hook';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useStorage, safeJsonParse } from '@/providers/StorageProvider';
@@ -59,6 +60,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
   const nativeInterimSub = useRef<any>(null);
   const nativeFinalSub = useRef<any>(null);
   const nativeErrorSub = useRef<any>(null);
+  const lastEventTs = useRef<number>(Date.now());
 
   useEffect(() => {
     console.log('[VoiceControlV2] Initializing command parser...');
@@ -234,6 +236,9 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         detail: error,
       }));
     }
+    try {
+      BackgroundListeningManager.getInstance().onError(error.message);
+    } catch {}
 
     if (error.code === 'not-allowed') {
       setState(prev => ({ 
@@ -313,9 +318,11 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         }
         
         nativeInterimSub.current = onInterim((text) => {
+          lastEventTs.current = Date.now();
           handleASRResult({ text, confidence: 0.5, isFinal: false });
         });
         nativeFinalSub.current = onFinal((text, confidence) => {
+          lastEventTs.current = Date.now();
           handleASRResult({ text, confidence: confidence ?? 0.85, isFinal: true });
         });
         nativeErrorSub.current = onError((code, message) => {
@@ -323,6 +330,16 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         });
         startContinuousListen();
         setState(prev => ({ ...prev, isListening: true }));
+        BackgroundListeningManager.getInstance().updateConfig({ keepAliveInterval: 10000, maxRestartAttempts: 3, autoRestart: true });
+        BackgroundListeningManager.getInstance().setHealthCheckCallback(() => {
+          const healthy = state.isListening && (Date.now() - lastEventTs.current) < 30000;
+          return healthy;
+        });
+        BackgroundListeningManager.getInstance().setRestartCallback(async () => {
+          stopContinuousListen();
+          await new Promise(res => setTimeout(res, 300));
+          startContinuousListen();
+        });
         isStartingRef.current = false;
         return;
       }

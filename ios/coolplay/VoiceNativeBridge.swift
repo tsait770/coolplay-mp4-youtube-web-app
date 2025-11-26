@@ -16,6 +16,7 @@ class VoiceNative: RCTEventEmitter {
   @objc
   func startListening() {
     do {
+      manager.registerNotifications()
       try manager.setupAudioSession()
       try manager.startListening(finalEmitter: { text in
         self.sendEvent(withName: "onFinal", body: ["text": text, "confidence": 0.85])
