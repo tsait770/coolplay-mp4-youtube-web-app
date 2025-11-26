@@ -23,8 +23,8 @@ This guide will walk you through setting up Stripe for your CoolPlay membership 
 4. Add them to your `.env` file:
 
 ```env
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51SAKkJRxUrNPaFRS20Vvfyr9Jq0kWxyrZ5jMWfwHdQkYalTHFS6ECvfD0F2D9igzmd8PKDsXfY55bNxJey7xjLjU00UqlgQXvy
-STRIPE_SECRET_KEY=sk_test_51SAKkJRxUrNPaFRSicTQ4e8DMZTawJd8XAYc7iA5s1NFGW2FUS3mP4SFQ1jwg9AUqkdvukICRqWJ648AM6nPAXgE00SR6RtVcf
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ## Step 3: Create Products
@@ -118,7 +118,7 @@ Webhooks allow Stripe to notify your app when payments succeed or fail.
 7. Add to `.env`:
 
 ```env
-STRIPE_WEBHOOK_SECRET=whsec_1234567890abcdefghijklmnopqrstuvwxyz
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ## Step 5: Test the Integration
@@ -207,9 +207,9 @@ EXPO_PUBLIC_SUPABASE_URL=https://tdamcrigenexyhbsopay.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Stripe Configuration
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51SAKkJRxUrNPaFRS20Vvfyr9Jq0kWxyrZ5jMWfwHdQkYalTHFS6ECvfD0F2D9igzmd8PKDsXfY55bNxJey7xjLjU00UqlgQXvy
-STRIPE_SECRET_KEY=sk_test_51SAKkJRxUrNPaFRSicTQ4e8DMZTawJd8XAYc7iA5s1NFGW2FUS3mP4SFQ1jwg9AUqkdvukICRqWJ648AM6nPAXgE00SR6RtVcf
-STRIPE_WEBHOOK_SECRET=whsec_1234567890abcdefghijklmnopqrstuvwxyz
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Stripe Price IDs
 EXPO_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID=price_1234567890abcdef

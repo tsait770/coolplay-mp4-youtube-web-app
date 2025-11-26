@@ -226,8 +226,8 @@ EXPO_PUBLIC_SUPABASE_URL=https://tdamcrigenexyhbsopay.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Stripe
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51SAKkJRxUrNPaFRS...
-STRIPE_SECRET_KEY=sk_test_51SAKkJRxUrNPaFRSicTQ4e8...
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Stripe Price IDs (Update after creating products)
 EXPO_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID=price_basic_monthly

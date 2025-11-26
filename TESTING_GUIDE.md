@@ -6,8 +6,8 @@
 確保 `.env` 文件包含以下配置：
 ```env
 # Stripe 測試金鑰
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51SAKkJRxUrNPaFRS20Vvfyr9Jq0kWxyrZ5jMWfwHdQkYalTHFS6ECvfD0F2D9igzmd8PKDsXfY55bNxJey7xjLjU00UqlgQXvy
-STRIPE_SECRET_KEY=sk_test_51SAKkJRxUrNPaFRSicTQ4e8DMZTawJd8XAYc7iA5s1NFGW2FUS3mP4SFQ1jwg9AUqkdvukICRqWJ648AM6nPAXgE00SR6RtVcf
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Stripe 價格 ID（需要在 Stripe 儀表板創建後更新）
 EXPO_PUBLIC_STRIPE_BASIC_MONTHLY_PRICE_ID=price_xxxxxxxxxxxxx
