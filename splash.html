@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InstaPlay 漸變 Logo 開場</title>
     <!-- 使用 Inter 字體，簡潔現代，適合 App 風格 --><link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap" rel="stylesheet">
-    <!-- 移除 Tailwind CSS CDN，因為它與純 CSS 動畫無關，且可能導致載入延遲 -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
             --bg-black: #000000;
@@ -200,17 +200,14 @@
                 replayBtn.style.display = 'none';
                 replayBtn.classList.remove('show-btn');
 
-                // 確保動畫可以重新觸發 (強制重繪)
+                // 強制重繪 (Reflow) 以便重新觸發動畫
                 void logoWrapper.offsetWidth;
 
                 // 開始動畫 (零延遲，立即啟動)
-                // 延遲 100ms 確保 DOM 渲染完成，避免動畫被跳過
-                setTimeout(() => {
-                    logoWrapper.classList.add('animate-sequence');
-                }, 100);
+                logoWrapper.classList.add('animate-sequence');
 
                 // 動畫結束後顯示按鈕 
-                // 動畫結束後顯示按鈕 (2.5s 動畫，2.3s 啟動淡入)
+                // 【優化】從 4000ms 調整為 2300ms (2.5s 動畫，2.3s 啟動淡入)
                 setTimeout(() => {
                     replayBtn.style.display = 'block';
                     // 啟動按鈕淡入動畫 (1s)
