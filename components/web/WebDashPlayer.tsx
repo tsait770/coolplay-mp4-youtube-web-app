@@ -337,7 +337,7 @@ const WebDashPlayer = React.forwardRef(({
       />
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={Colors.primary.text} />
+          <ActivityIndicator size="large" color={Colors.white} />
           <Text style={styles.loadingText}>載入 DASH 串流中...</Text>
         </View>
       )}
@@ -350,13 +350,13 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.primary.bg,
+    backgroundColor: Colors.black,
   },
   webView: {
     flex: 1,
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.primary.bg,
+    backgroundColor: Colors.black,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -366,17 +366,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   loadingText: {
-    color: Colors.primary.text,
+    color: Colors.white,
     marginTop: 10,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.primary.bg,
+    backgroundColor: Colors.black,
   },
   errorText: {
-    color: Colors.semantic.danger,
+    color: Colors.red,
     textAlign: 'center',
     padding: 20,
   },

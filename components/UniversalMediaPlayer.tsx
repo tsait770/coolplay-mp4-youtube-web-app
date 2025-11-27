@@ -79,7 +79,7 @@ const UniversalMediaPlayer = React.forwardRef(({
   const playbackEligibility = canPlayVideo(url, tier);
 
   const isDASH = sourceInfo.type === 'stream' && sourceInfo.streamType === 'dash';
-  const isMP3 = sourceInfo.type === 'audio' || (sourceInfo.type === 'direct' && url.toLowerCase().endsWith('.mp3'));
+  const isMP3 = sourceInfo.type === 'mp3';
 
   const shouldUseNativePlayer =
     sourceInfo.type === 'direct' ||
@@ -176,8 +176,7 @@ const UniversalMediaPlayer = React.forwardRef(({
     },
     stop: () => {
         if (player) {
-            player.pause();
-            player.currentTime = 0;
+            player.stop();
             setIsPlaying(false);
         } else if (webViewRef.current) {
             const command = "document.getElementById('video').pause(); document.getElementById('video').currentTime = 0;";
@@ -345,14 +344,14 @@ const UniversalMediaPlayer = React.forwardRef(({
 
   const renderErrorOverlay = (message: string) => (
     <View style={styles.overlay}>
-      <AlertCircle size={48} color={Colors.primary.text} />
+      <AlertCircle size={48} color={Colors.white} />
       <Text style={styles.overlayText}>{message}</Text>
     </View>
   );
 
   const renderLoadingOverlay = () => (
     <View style={styles.overlay}>
-      <ActivityIndicator size="large" color={Colors.primary.text} />
+      <ActivityIndicator size="large" color={Colors.white} />
       <Text style={styles.overlayText}>Loading...</Text>
     </View>
   );

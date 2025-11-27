@@ -23,8 +23,6 @@
     "**/node_modules/**",
     "supabase/functions/**",
     "functions/**",
-    "backend/**",
-    "scripts/**",
     ".expo/**",
     "dist/**",
     "web-build/**"
