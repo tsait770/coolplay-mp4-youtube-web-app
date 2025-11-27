@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CoolPlay 原版 MP3 MP4 iOS背景監聽",
-    "slug": "coolplay-voice-control-responsive-design-tnpfahko-1nujg3mu-th1lnpov",
-    "version": "1.0.0",
+    "name": "InstaPlay",
+    "slug": "instaplay",
+    "version": "10.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "instaplay",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,15 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.coolplay-voice-control-responsive-design-tnpfahko-1nujg3mu-th1lnpov",
+      "bundleIdentifier": "com.instaplay.app",
       "infoPlist": {
         "UIBackgroundModes": [
-          "audio"
+          "audio",
+          "processing"
         ],
-        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+        "NSMicrophoneUsageDescription": "This app uses the microphone to enable voice control for video playback.",
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
-        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition for voice commands"
+        "NSSpeechRecognitionUsageDescription": "This app uses speech recognition to convert your voice commands into actions."
       },
       "usesIcloudStorage": true
     },
@@ -31,9 +32,10 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.coolplay_voice_control_responsive_design_tnpfahko_1nujg3mu_th1lnpov",
+      "package": "com.instaplay.app",
       "permissions": [
         "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "INTERNET",
@@ -58,9 +60,15 @@
         }
       ],
       [
+        "expo-speech",
+        {
+          "microphonePermission": "Allow InstaPlay to access your microphone for voice commands."
+        }
+      ],
+      [
         "expo-av",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
+          "microphonePermission": "Allow InstaPlay to access your microphone for voice commands."
         }
       ],
       [
@@ -80,7 +88,7 @@
         "expo-camera",
         {
           "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera",
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone",
+          "microphonePermission": "Allow InstaPlay to access your microphone for voice commands.",
           "recordAudioAndroid": true
         }
       ]
