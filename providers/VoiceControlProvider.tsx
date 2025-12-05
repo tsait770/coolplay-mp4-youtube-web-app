@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Platform, DeviceEventEmitter } from 'react-native';
+import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import createContextHook from '@nkzw/create-context-hook';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -7,25 +7,6 @@ import { useStorage, safeJsonParse } from '@/providers/StorageProvider';
 // Import JSON files directly to avoid dynamic import issues
 import voiceCommandsData from '@/constants/voiceCommands.json';
 import voiceIntentsData from '@/constants/voiceIntents.json';
-
-// Cross-platform event dispatcher
-const dispatchVoiceEvent = (eventName: string, detail: any) => {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-      try {
-        window.dispatchEvent(new CustomEvent(eventName, { detail }));
-      } catch (error) {
-        console.warn(`[VoiceControl] Failed to dispatch web event: ${eventName}`, error);
-      }
-    }
-  } else {
-    try {
-      DeviceEventEmitter.emit(eventName, detail);
-    } catch (error) {
-      console.warn(`[VoiceControl] Failed to dispatch native event: ${eventName}`, error);
-    }
-  }
-};
 
 // Use imported data directly
 const voiceCommands = voiceCommandsData;
@@ -262,11 +243,16 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         await saveSettings({ usageCount: newCount });
       }
 
-      dispatchVoiceEvent('voiceCommand', {
-        intent: command.intent,
-        action: command.action,
-        slot: command.slot,
+      const event = new CustomEvent('voiceCommand', {
+        detail: {
+          intent: command.intent,
+          action: command.action,
+          slot: command.slot,
+        },
       });
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(event);
+      }
     } catch (error) {
       console.error('Failed to execute voice command:', error);
     }
@@ -358,23 +344,11 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
       });
 
       if (response.ok) {
-        try {
-          const contentType = response.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error('Transcription API returned non-JSON response:', text.substring(0, 200));
-            return;
-          }
-          
-          const result = await response.json();
-          if (result.text && result.text.trim().length > 0) {
-            processCommand(result.text, 0.85);
-          } else {
-            console.log('No speech detected in audio');
-          }
-        } catch (jsonError) {
-          const text = await response.text();
-          console.error('Failed to parse transcription response:', jsonError, 'Response preview:', text.substring(0, 200));
+        const result = await response.json();
+        if (result.text && result.text.trim().length > 0) {
+          processCommand(result.text, 0.85);
+        } else {
+          console.log('No speech detected in audio');
         }
       } else {
         const errorText = await response.text();
@@ -427,8 +401,10 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         console.error('getUserMedia failed:', e?.name || e);
         setState(prev => ({ ...prev, isListening: false, isProcessing: false }));
         try {
-          const code = e?.name === 'NotAllowedError' ? 'mic-denied' : 'mic-error';
-          dispatchVoiceEvent('voiceError', { code, message: e?.message || 'Microphone access error' });
+          if (typeof window !== 'undefined') {
+            const code = e?.name === 'NotAllowedError' ? 'mic-denied' : 'mic-error';
+            window.dispatchEvent(new CustomEvent('voiceError', { detail: { code, message: e?.message || 'Microphone access error' } }));
+          }
         } catch {}
         return;
       }
@@ -667,7 +643,9 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
                 console.error('Microphone access error - please check permissions');
                 setState(prev => ({ ...prev, isListening: false, isProcessing: false }));
                 try {
-                  dispatchVoiceEvent('voiceError', { code: 'mic-error', message: 'Microphone access error' });
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-error', message: 'Microphone access error' } }));
+                  }
                 } catch {}
                 // Don't auto-restart on permission errors
               } else if (event.error === 'network') {
@@ -686,7 +664,9 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
                 console.error('Microphone permission denied');
                 setState(prev => ({ ...prev, isListening: false, isProcessing: false, alwaysListening: false }));
                 try {
-                  dispatchVoiceEvent('voiceError', { code: 'mic-denied', message: 'Microphone permission denied' });
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-denied', message: 'Microphone permission denied' } }));
+                  }
                 } catch {}
                 // Don't auto-restart on permission denied
               } else {
