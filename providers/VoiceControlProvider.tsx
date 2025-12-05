@@ -344,11 +344,23 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        if (result.text && result.text.trim().length > 0) {
-          processCommand(result.text, 0.85);
-        } else {
-          console.log('No speech detected in audio');
+        try {
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Transcription API returned non-JSON response:', text.substring(0, 200));
+            return;
+          }
+          
+          const result = await response.json();
+          if (result.text && result.text.trim().length > 0) {
+            processCommand(result.text, 0.85);
+          } else {
+            console.log('No speech detected in audio');
+          }
+        } catch (jsonError) {
+          const text = await response.text();
+          console.error('Failed to parse transcription response:', jsonError, 'Response preview:', text.substring(0, 200));
         }
       } else {
         const errorText = await response.text();
